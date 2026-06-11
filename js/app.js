@@ -761,7 +761,8 @@ async function trPlayAnswer() {                    // solve the on-screen scramb
   for (const t of invertSeq(trScramble)) await tcube.animateMove(tcube.parse(t));
   busy = false;
 }
-const statsKey = () => trKey || (trMode==='solve' ? trSetId + ':solve' : trSetId);
+const statsKey = () => { const b = trKey || (trMode==='solve' ? trSetId + ':solve' : trSetId);
+  return trCubeMode !== 'physical' ? b + ':virtual' : b; };   // virtual (on-screen) solves kept separate from physical — in history, stats & cloud
 /* multi-mode trainers: resolve a mode's case set + apply it */
 function f2lSet() { const L = LESSONS['3x3/cfop/f2l']; const out = [];
   (L && (L.sections || [{ algs:L.algs }]) || []).forEach(s => (s.algs||[]).forEach(a => out.push({ name:a.name, moves:a.moves }))); return out; }
@@ -919,7 +920,7 @@ document.getElementById('trMode').addEventListener('change', e => {
 document.getElementById('trCubeMode').addEventListener('change', e => {
   trCubeMode = e.target.value;
   trState='idle'; cancelAnimationFrame(trRAF); trTimerEl.classList.remove('armed','inspecting'); trTimerEl.textContent='0.00';
-  applyCubeMode(); newScramble();
+  applyCubeMode(); reloadTimes(); newScramble();   // reload: physical & virtual keep separate histories
 });
 /* Timer keys: start ONLY on spacebar release (so holding it doesn't fire repeatedly),
    stop on the first keydown. Auto-repeat keydown events are ignored. */
@@ -1307,12 +1308,14 @@ document.getElementById('statsGroupBy').addEventListener('change', e => { statsG
 const STATS_PZNAME = (() => { const m={}; (typeof PUZZLES!=='undefined'?PUZZLES:[]).forEach(p=>{ m[p.id]=p.name.split('(')[0].trim(); }); return m; })();
 function statsLabel(setId) {
   const titleCase = s => s.replace(/\b\w/g, c => c.toUpperCase());
+  const virt = setId.endsWith(':virtual'); if (virt) setId = setId.slice(0, -8);   // strip ':virtual'
+  const tag = virt ? ' · Virtual' : '';
   if (setId.startsWith('timer:')) { const parts=setId.split(':'); const pz=STATS_PZNAME[parts[1]]||parts[1]; const mode=parts[2]||'solve';
-    return mode==='solve' ? pz+' — Timer' : pz+' — '+mode.toUpperCase(); }
+    return (mode==='solve' ? pz+' — Timer' : pz+' — '+mode.toUpperCase()) + tag; }
   const base = setId.replace(/:solve$/,'');
   const known = { pll:'PLL', oll:'OLL', f2l:'F2L', cll:'CLL', eg1:'EG-1', eg2:'EG-2', pbl:'PBL', cmll:'CMLL', zbll:'ZBLL' };
-  if (known[base]) return known[base]+' Trainer';
-  return titleCase(base.replace(/[-_/]/g,' '));
+  if (known[base]) return known[base]+' Trainer'+tag;
+  return titleCase(base.replace(/[-_/]/g,' '))+tag;
 }
 function statsAllSets() {
   const times = Profiles.data().times || {};
