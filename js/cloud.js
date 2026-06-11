@@ -9,7 +9,7 @@
   const SUPABASE_URL = 'https://kzervfsdkmpyjasjqrqd.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_BAZg9zliMOksHrQZurx4zw_LlB5Tjqw';   // publishable key — safe in client code
   if (typeof supabase === 'undefined' || !supabase.createClient) return;   // offline / file:// → guest-only, no auth UI
-  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
   let uid = null, email = null, accountPid = null, prevGuestPid = null;
   const signedIn = () => !!uid;
@@ -24,20 +24,34 @@
     if (!signedIn() || Profiles.currentId() !== accountPid) return;
     const local = getSolves(setId);
     try {
-      if (local.length) {
-        const rows = local.map(s => ({ user_id: uid, set_id: setId, ms: Math.round(s.ms), penalty: penToText(s.p), t: s.t }));   // ms column is integer; raw times are float
-        const up = await sb.from('solves').upsert(rows, { onConflict: 'user_id,set_id,t' });
-        if (up.error) throw up.error;
-      }
-      let del = sb.from('solves').delete().eq('set_id', setId);
-      const ts = local.map(s => s.t);
-      if (ts.length) del = del.not('t', 'in', '(' + ts.join(',') + ')');
-      const dr = await del; if (dr.error) throw dr.error;
+      await dbOp(async () => {
+        if (local.length) {
+          const rows = local.map(s => ({ user_id: uid, set_id: setId, ms: Math.round(s.ms), penalty: penToText(s.p), t: s.t }));   // ms column is integer; raw times are float
+          const up = await sb.from('solves').upsert(rows, { onConflict: 'user_id,set_id,t' });
+          if (up.error) throw up.error;
+        }
+        let del = sb.from('solves').delete().eq('set_id', setId);
+        const ts = local.map(s => s.t);
+        if (ts.length) del = del.not('t', 'in', '(' + ts.join(',') + ')');
+        const dr = await del; if (dr.error) throw dr.error;
+      });
       setSyncStatus('✓ Synced', false);
-    } catch (e) { console.warn('[cloud] sync failed for', setId, e.message || e); setSyncStatus('Sync error: ' + (e.message || e), true); }
+    } catch (e) { console.warn('[cloud] sync failed for', setId, e.message || e); setSyncStatus(e && e._reauth ? 'Session expired — sign in again' : 'Sync error: ' + (e.message || e), true); }
   }
   window.cloudSyncSet = cloudSyncSet;
   function setSyncStatus(t, err) { const el = document.getElementById('authSync'); if (el) { el.textContent = t; el.classList.toggle('err', !!err); } }
+  // expired-token recovery: the access token (JWT) lives ~1h; if a request hits an expired one
+  // (e.g. the tab/computer was idle past the auto-refresh), refresh the session once and retry.
+  const isAuthErr = e => /jwt|token|expired|401|not authenticated|invalid claim/i.test((e && (e.message || e.error_description)) || String(e));
+  async function dbOp(run) {
+    try { return await run(); }                                  // run() must throw on a Postgrest .error
+    catch (e) {
+      if (!isAuthErr(e)) throw e;
+      const { data, error } = await sb.auth.refreshSession();
+      if (error || !(data && data.session)) { const x = new Error('Session expired — sign in again'); x._reauth = true; throw x; }
+      return await run();                                        // retry once with the fresh token
+    }
+  }
 
   /* mirror the account's custom algorithms + preferred-alg choices to the `user_algs` table.
      Replace-all (the data is tiny). Degrades to local-only if the table is missing / offline. */
@@ -53,16 +67,18 @@
   async function cloudSaveAlgs() {
     if (!signedIn() || Profiles.currentId() !== accountPid) return;
     try {
-      const del = await sb.from('user_algs').delete().eq('user_id', uid); if (del.error) throw del.error;
-      const rows = algRows();
-      if (rows.length) { const up = await sb.from('user_algs').insert(rows); if (up.error) throw up.error; }
+      await dbOp(async () => {
+        const del = await sb.from('user_algs').delete().eq('user_id', uid); if (del.error) throw del.error;
+        const rows = algRows();
+        if (rows.length) { const up = await sb.from('user_algs').insert(rows); if (up.error) throw up.error; }
+      });
       setSyncStatus('✓ Synced', false);
-    } catch (e) { console.warn('[cloud] custom-alg sync failed (kept locally):', e.message || e); }
+    } catch (e) { console.warn('[cloud] custom-alg sync failed (kept locally):', e.message || e); if (e && e._reauth) setSyncStatus('Session expired — sign in again', true); }
   }
   window.cloudSaveAlgs = cloudSaveAlgs;
   async function cloudPullAlgs() {
     try {
-      const r = await sb.from('user_algs').select('set_id,case_name,alg,role'); if (r.error) throw r.error;
+      const r = await dbOp(async () => { const r = await sb.from('user_algs').select('set_id,case_name,alg,role'); if (r.error) throw r.error; return r; });
       const d = Profiles.data(); d.custom = d.custom || {}; d.algpref = d.algpref || {};
       r.data.forEach(row => { const k = row.set_id + '/' + row.case_name;
         if (row.role === 'pref') d.algpref[k] = row.alg;
@@ -76,8 +92,8 @@
      then push anything local-only back up so both sides converge to the union. */
   async function cloudPullMerge() {
     let rows;
-    try { const r = await sb.from('solves').select('set_id,ms,penalty,t'); if (r.error) throw r.error; rows = r.data; }
-    catch (e) { console.warn('[cloud] pull failed', e.message || e); setSyncStatus('Sync error: ' + (e.message || e), true); return; }
+    try { const r = await dbOp(async () => { const r = await sb.from('solves').select('set_id,ms,penalty,t'); if (r.error) throw r.error; return r; }); rows = r.data; }
+    catch (e) { console.warn('[cloud] pull failed', e.message || e); setSyncStatus(e && e._reauth ? 'Session expired — sign in again' : 'Sync error: ' + (e.message || e), true); return; }
     const cloud = {};
     rows.forEach(r => { (cloud[r.set_id] = cloud[r.set_id] || []).push({ ms: r.ms, p: penFromTxt(r.penalty), t: Number(r.t) }); });
     const d = Profiles.data(); d.times = d.times || {};
