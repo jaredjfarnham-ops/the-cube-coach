@@ -377,8 +377,12 @@ function makeCubeControls(cube, cubeEl, sceneEl, opts={}) {
     const c = df.c, n = mvVec(c.ori, df.ln);                       // face's current world-local normal
     const nAxis = Math.abs(n.x)>0.5?'x' : Math.abs(n.y)>0.5?'y' : 'z';
     const inPlane = ['x','y','z'].filter(k=>k!==nAxis).map(k=>PAXES[k]);
+    const PRIO = { y:1.35, x:1.15, z:1.0 };   // bias ambiguous drags toward E/Y > M/X > S/Z rotations (most→least common)
     let best=null, ba=-1, bs=1;
-    inPlane.forEach(a => { const P=project(a); const d=dx*P.x+dy*P.y; if (Math.abs(d)>ba) { ba=Math.abs(d); best=a; bs=Math.sign(d)||1; } });
+    inPlane.forEach(a => { const P=project(a); const d=dx*P.x+dy*P.y;
+      const rv=cross(n,a), rax=Math.abs(rv.x)>=Math.abs(rv.y)&&Math.abs(rv.x)>=Math.abs(rv.z)?'x':Math.abs(rv.y)>=Math.abs(rv.z)?'y':'z';
+      const score=Math.abs(d)*(PRIO[rax]||1);   // weight by the rotation AXIS this drag would produce
+      if (score>ba) { ba=score; best=a; bs=Math.sign(d)||1; } });
     const u = { x:best.x*bs, y:best.y*bs, z:best.z*bs };
     const r = cross(n, u);
     const axis = Math.abs(r.x)>0.5?'x' : Math.abs(r.y)>0.5?'y' : 'z';
