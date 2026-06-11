@@ -51,11 +51,11 @@ const bundle = 'const LESSONS={};' +
   // one-handed friendliness penalty (lower = better): R/U/y are free, slices & wide & L/D/B are costly
   function ohScore(alg){ let s=0; const toks=tokenize(alg);
     for(const t of toks){ const b=t.replace(/['2]/g,'');
-      if(/^[MES]$/.test(b)) s+=10;                       // M/E/S slices — need two hands
-      else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=8; // wide moves
-      else if(b==='L'||b==='D') s+=4; else if(b==='B') s+=3;
-      else if(b==='F') s+=1.5; else if(b==='x'||b==='z') s+=1.5; } // R, U, y = 0
-    return s + toks.length*0.1; }                        // tie-break: shorter
+      if(/^[MES]$/.test(b)) s+=10;                          // M/E/S slices — need two hands
+      else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=4;    // wide (esp. r) forces a regrip — same tier as F/L/D
+      else if(b==='L'||b==='D'||b==='B'||b==='F') s+=4;     // single moves that force a regrip
+      else if(b==='x'||b==='z') s+=1.5; }                   // R, U, y = 0
+    return s + toks.length*0.1; }                           // tie-break: shorter
   // pick the most OH-friendly alg as primary, rest as alts (OH order)
   function pickOH(c, goal, pool){ const seen=new Set(), verified=[];
     [c.moves, ...pool].forEach(a=>{ if(!solvesCase(goal, c.moves, a)) return; const s=simplify(a)||a; if(!solvesCase(goal,c.moves,s)) return; const tk=tokenize(s).join(' '); if(seen.has(tk)) return; seen.add(tk); verified.push(s); });
