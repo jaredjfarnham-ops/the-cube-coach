@@ -33,16 +33,18 @@
       const ts = local.map(s => s.t);
       if (ts.length) del = del.not('t', 'in', '(' + ts.join(',') + ')');
       const dr = await del; if (dr.error) throw dr.error;
-    } catch (e) { console.warn('[cloud] sync failed for', setId, e.message || e); }
+      setSyncStatus('✓ Synced', false);
+    } catch (e) { console.warn('[cloud] sync failed for', setId, e.message || e); setSyncStatus('Sync error: ' + (e.message || e), true); }
   }
   window.cloudSyncSet = cloudSyncSet;
+  function setSyncStatus(t, err) { const el = document.getElementById('authSync'); if (el) { el.textContent = t; el.classList.toggle('err', !!err); } }
 
   /* pull every cloud solve into the account profile, merge (cloud wins on identical timestamp; local-only kept),
      then push anything local-only back up so both sides converge to the union. */
   async function cloudPullMerge() {
     let rows;
     try { const r = await sb.from('solves').select('set_id,ms,penalty,t'); if (r.error) throw r.error; rows = r.data; }
-    catch (e) { console.warn('[cloud] pull failed', e.message || e); return; }
+    catch (e) { console.warn('[cloud] pull failed', e.message || e); setSyncStatus('Sync error: ' + (e.message || e), true); return; }
     const cloud = {};
     rows.forEach(r => { (cloud[r.set_id] = cloud[r.set_id] || []).push({ ms: r.ms, p: penFromTxt(r.penalty), t: Number(r.t) }); });
     const d = Profiles.data(); d.times = d.times || {};
@@ -96,6 +98,7 @@
     if (!panel) return;
     if (signedIn()) {
       box.innerHTML = `<div class="auth-on"><span class="cloud-dot">☁</span> Synced as <b></b></div>
+        <div class="auth-sync" id="authSync">✓ Synced</div>
         <button class="ctl" id="authSignOut">Sign out</button>`;
       box.querySelector('b').textContent = email;
       box.querySelector('#authSignOut').onclick = () => sb.auth.signOut();

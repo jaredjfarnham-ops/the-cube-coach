@@ -181,6 +181,8 @@
   .auth-msg.err { color: #ff7676; }
   .auth-on { display: flex; align-items: center; gap: 6px; font-size: 13px; }
   .auth-on b { font-weight: 600; word-break: break-all; }
+  .auth-sync { font-size: 11px; color: var(--accent-2); line-height: 1.35; word-break: break-word; }
+  .auth-sync.err { color: #ff7676; }
   .cloud-dot { color: var(--accent-2); }
   [data-theme="light"] .auth-in { border-color: #d6dcec; }
 
