@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Cube Coach</title>
+<link rel="stylesheet" href="assets/icons/cubing-icons.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>🧊 The Cube Coach</h1>
+      <p>Learn every WCA puzzle — tutorials, algorithm sheets, and trainers.</p>
+    </div>
+    <div class="header-actions">
+      <div class="user-menu" id="userMenu">
+        <button class="user-btn" id="userBtn"><span class="uava">👤</span><span id="userName">Player 1</span><span class="caret">▾</span></button>
+        <div class="user-panel hidden" id="userPanel">
+          <div class="user-list" id="userList"></div>
+          <div class="user-add">
+            <input id="userInput" type="text" placeholder="Profile name" maxlength="22">
+            <button class="ctl" id="userAdd">Add</button>
+          </div>
+          <div class="user-row-actions">
+            <button class="ctl" id="userRename">Rename current</button>
+            <button class="ctl" id="userDelete">Delete current</button>
+          </div>
+          <div class="user-note">Profiles &amp; times are saved on this device. A sign-in can sync them across devices later.</div>
+        </div>
+      </div>
+      <button class="theme-toggle" id="prefsBtn" title="Settings">⚙</button>
+      <button id="themeToggle" class="theme-toggle" title="Toggle light/dark">🌙</button>
+    </div>
+  </header>
+
+  <div class="megawrap" id="megawrap">
+    <nav class="megabar" id="megabar"></nav>
+    <div class="megapanel" id="megapanel"></div>
+  </div>
+  <div class="crumbbar" id="breadcrumb"></div>
+
+  <main id="content">
+    <!-- HOME: jperm-style card grid -->
+    <div id="view-home" class="home"></div>
+
+    <!-- Turn Notation lesson -->
+    <div id="view-notation" class="layout hidden">
+      <nav class="moves" id="moveList"></nav>
+      <section class="stage-wrap">
+        <div class="scene"><div class="cube" id="cube"></div></div>
+        <div class="readout">
+          <div class="big" id="roNotation">—</div>
+          <div class="name" id="roName">pick a move to begin</div>
+          <div class="desc" id="roDesc">Each button is a piece of standard cube notation. Watch how the cube responds.</div>
+        </div>
+        <div class="controls">
+          <button class="ctl" id="mPrime">Prime&nbsp;( ′ )</button>
+          <button class="ctl" id="mDouble">Double&nbsp;( 2 )</button>
+          <button class="ctl" id="replay">↻ Replay</button>
+          <button class="ctl" id="reset">Reset</button>
+        </div>
+        <div class="hint"><b>Prime (′)</b> = counter-clockwise. <b>Double (2)</b> = half-turn. Toggle one, then click a face — e.g. Prime + <b>R</b> = <b>R′</b>.</div>
+      </section>
+    </div>
+
+    <!-- Generic lesson (concept highlights OR algorithm player) -->
+    <div id="view-lesson" class="lesson-layout hidden">
+      <div class="lesson-text" id="lessonText"></div>
+      <section class="lesson-stage">
+        <div class="scene"><div class="cube" id="lessonCube"></div></div>
+        <div class="scene-sim" id="lessonSim"></div>
+        <div id="algoControls">
+          <div class="algo-readout" id="algoReadout"></div>
+          <div class="controls">
+            <button class="ctl" id="lsPlay">▶ Play</button>
+            <button class="ctl" id="lsStep">Step ▷</button>
+            <button class="ctl" id="lsReset">↻ Reset</button>
+          </div>
+          <div class="hint" id="algoNote"></div>
+        </div>
+        <div id="hlControls" class="hidden">
+          <div class="controls">
+            <button class="ctl on" data-hl="all">All</button>
+            <button class="ctl" data-hl="center">Centers</button>
+            <button class="ctl" data-hl="edge">Edges</button>
+            <button class="ctl" data-hl="corner">Corners</button>
+          </div>
+          <div class="hint">Click a piece type to highlight just those pieces.</div>
+        </div>
+        <div id="lessonSimCtl" class="hidden">
+          <div class="controls">
+            <button class="ctl" id="lsSimReplay">▶ Replay</button>
+            <button class="ctl" id="lsSimReset">↻ Reset</button>
+            <button class="ctl" id="lsSimRecenter">Recentre</button>
+          </div>
+          <div class="hint" id="lessonSimHint"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Algorithm sheet: grid of case cards -->
+    <div id="view-sheet" class="sheet-view hidden">
+      <div class="sheet-head">
+        <div class="sheet-intro" id="sheetIntro"></div>
+        <div class="sheet-stage">
+          <div class="scene small"><div class="cube" id="sheetCube"></div></div>
+          <div class="algo-readout" id="sheetReadout"></div>
+        </div>
+      </div>
+      <div class="sheet-grid" id="sheetGrid"></div>
+    </div>
+
+    <!-- Trainer: timer-based recognition (jperm-style) -->
+    <div id="view-trainer" class="trainer-view hidden">
+      <div class="trainer-intro" id="trainerIntro"></div>
+      <div class="trainer-main">
+        <div class="trainer-case">
+          <div class="trainer-diagram" id="trainerDiagram" title="Click to change status"></div>
+          <div class="trainer-status" id="trainerStatus">Unlearned</div>
+          <div class="trainer-answer" id="trainerAnswer"></div>
+        </div>
+        <div class="trainer-panel">
+          <div class="trainer-scramble" id="trainerScramble"></div>
+          <div class="trainer-timer" id="trainerTimer">0.00</div>
+          <div class="hint time-hint" id="trHint">Apply the scramble to your cube, then press <b>Space</b> to start/stop · <b>R</b> reveal · <b>N</b> next</div>
+          <div class="trainer-count" id="trainerCount">
+            <label for="countInput">Solution length</label>
+            <div class="count-entry">
+              <input type="number" id="countInput" min="1" max="80" inputmode="numeric" placeholder="moves">
+              <button class="ctl" id="countSubmit">Record</button>
+              <button class="ctl" id="countDnf">DNF</button>
+            </div>
+            <div class="hint">Find a solution on paper, then enter its <b>move count</b> (HTM). <b>N</b> = new scramble.</div>
+          </div>
+          <div class="controls">
+            <button class="ctl case-only" id="trReveal">Reveal</button>
+            <button class="ctl" id="trNext">New scramble</button>
+            <button class="ctl case-only" id="trPlay">▶ Play on cube</button>
+            <button class="ctl" id="trReset">Reset times</button>
+          </div>
+          <div class="trainer-filters">
+            <label class="filt-sel mode-row">Mode
+              <select id="trMode"><option value="step">Step (case)</option><option value="solve">Full solve</option></select>
+            </label>
+            <label class="filt-sel cube-row" id="trCubeRow">Cube
+              <select id="trCubeMode"><option value="physical">Physical — Space timer</option><option value="mouse">Virtual — mouse</option><option value="keyboard">Virtual — keyboard</option></select>
+            </label>
+            <label class="filt-sel case-only">Practice
+              <select id="trFilter"><option value="all">All</option><option value="0">⚫ Unlearned</option><option value="1">🟡 Learning</option><option value="2">🟢 Finished</option></select>
+            </label>
+            <label class="filt-sel case-only">Frequency
+              <select id="trProb"><option value="balanced">Balanced</option><option value="realistic">Realistic</option></select>
+            </label>
+          </div>
+          <div class="trainer-stats" id="trainerStats">No solves yet</div>
+          <div class="scene small"><div class="cube" id="trainerCube"></div></div>
+          <div class="scene-sim" id="trainerSim"></div>
+        </div>
+      </div>
+      <div class="trainer-history" id="trainerHistory"></div>
+    </div>
+
+    <!-- Virtual Cube: mouse-interactable playground -->
+    <div id="view-play" class="play-view hidden">
+      <div class="play-head">
+        <h2>Virtual Cube</h2>
+        <p id="playHint">Drag a <b>sticker</b> to turn that layer; drag the <b>background</b> to rotate (double-click to recentre). Or use the <b>keyboard</b> — camera-relative: R L U D F B, slices M E S, rotations x y z (Shift = prime, Ctrl = double).</p>
+      </div>
+      <div class="play-controls">
+        <label class="play-size">Puzzle
+          <select id="playPuzzle"></select>
+        </label>
+        <button class="ctl" id="playScramble">Scramble</button>
+        <button class="ctl" id="playUndo">Undo</button>
+        <button class="ctl" id="playReset">Reset</button>
+        <button class="ctl" id="playRecenter">Recentre</button>
+        <span class="play-status" id="playStatus">Solved ✔</span>
+      </div>
+      <div class="scene play-scene"><div class="cube" id="playCube"></div></div>
+      <div class="scene-sim play-sim" id="playSim"></div>
+      <div class="play-scramble mono" id="playScrambleText"></div>
+    </div>
+
+    <!-- Statistics: historical analysis across all events for the current profile -->
+    <div id="view-stats" class="stats-view hidden">
+      <div class="stats-head">
+        <h2>📊 Statistics</h2>
+        <p id="statsHint">A historical view of every solve you've recorded on this profile, across all events — with improvement-over-time analysis.</p>
+      </div>
+      <div class="stats-summary" id="statsSummary"></div>
+      <div class="stats-section">
+        <h3>Per-event</h3>
+        <div class="stats-events" id="statsEvents"></div>
+      </div>
+      <div class="stats-section" id="statsTrendSection">
+        <div class="stats-trend-head">
+          <h3 id="statsTrendTitle">Improvement over time</h3>
+          <label class="stats-gran">Group by
+            <select id="statsGroupBy">
+              <option value="solve">Solve</option>
+              <option value="hour">Hour</option>
+              <option value="day">Day</option>
+              <option value="week" selected>Week</option>
+              <option value="month">Month</option>
+            </select>
+          </label>
+        </div>
+        <div class="stats-chart" id="statsChart"></div>
+        <div class="stats-weeks" id="statsWeeks"></div>
+      </div>
+      <div class="stats-section">
+        <h3>All solves</h3>
+        <div class="stats-history" id="statsHistory"></div>
+      </div>
+    </div>
+
+    <!-- Coming-soon placeholder -->
+    <div id="view-placeholder" class="placeholder hidden">
+      <div class="card">
+        <span class="badge">🚧 Coming soon</span>
+        <div class="sub" id="phPath"></div>
+        <h2 id="phTitle"></h2>
+        <p id="phDesc"></p>
+        <div class="method-note" id="phMethod"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Settings dialog -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head"><h2>⚙ Settings</h2><button id="settingsClose" class="modal-x" title="Close">✕</button></div>
+      <div class="modal-body">
+        <section>
+          <h3>Timer</h3>
+          <div class="set-row">
+            <div><b>Inspection</b><span>15-second WCA countdown before the solve (+2 over 15 s, DNF over 17 s). “Except BLD” skips it for blindfolded events, where inspection is part of memo.</span></div>
+            <div class="seg"><button class="chip" data-pref="inspection" data-val="off">Off</button><button class="chip" data-pref="inspection" data-val="on">15&nbsp;s</button><button class="chip" data-pref="inspection" data-val="exceptbld">Except&nbsp;BLD</button></div>
+          </div>
+          <div class="set-row">
+            <div><b>Hide time while solving</b><span>Show “solving…” instead of the running time</span></div>
+            <div class="seg"><button class="chip" data-pref="hideTimer" data-val="off">Off</button><button class="chip" data-pref="hideTimer" data-val="on">On</button></div>
+          </div>
+          <div class="set-row">
+            <div><b>Highlight best / worst</b><span>In the solve history, the fastest single / Ao5 / Ao12 is tinted with the “best” colour and the slowest with the “worst”. Click a swatch to customise.</span></div>
+            <div class="color-pick-row">
+              <label>Best <button class="color-swatch" data-pbkey="pbBest" title="Choose best colour"></button></label>
+              <label>Worst <button class="color-swatch" data-pbkey="pbWorst" title="Choose worst colour"></button></label>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h3>Appearance</h3>
+          <div class="set-row">
+            <div><b>Theme</b></div>
+            <div class="seg"><button class="chip" data-pref="theme" data-val="dark">🌙 Night</button><button class="chip" data-pref="theme" data-val="light">☀️ Day</button></div>
+          </div>
+          <div class="set-row">
+            <div><b>Cube animation</b><span>Speed of the 3-D cube moves</span></div>
+            <div class="seg"><button class="chip" data-pref="anim" data-val="slow">Slow</button><button class="chip" data-pref="anim" data-val="normal">Normal</button><button class="chip" data-pref="anim" data-val="fast">Fast</button></div>
+          </div>
+        </section>
+        <section>
+          <h3>Scramble</h3>
+          <div class="set-row">
+            <div><b>Show scramble</b><span>Display the scramble notation in the trainer</span></div>
+            <div class="seg"><button class="chip" data-pref="showScramble" data-val="off">Off</button><button class="chip" data-pref="showScramble" data-val="on">On</button></div>
+          </div>
+          <div class="set-row">
+            <div><b>Full-solve length</b><span>How long random whole-solve scrambles are</span></div>
+            <div class="seg"><button class="chip" data-pref="scrLen" data-val="short">Short</button><button class="chip" data-pref="scrLen" data-val="normal">Normal</button><button class="chip" data-pref="scrLen" data-val="long">Long</button></div>
+          </div>
+        </section>
+        <div class="modal-note">Settings are saved on this device.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load all modules in order, with a per-load cache-buster so edits always take effect
+       (harmless for the file:// double-click use; fixes stale-cache on the dev server). -->
+  <script>
+  (function () {
+    var t = '?t=' + Date.now();
+    var files = [
+      'data/notation.js','data/lessons.js','data/lessons-extra.js','data/algs.js','data/cfop-sets.js',
+      'data/algs-sheets.js',
+      'data/probabilities.js','data/nxn.js','data/events.js','data/methods.js','data/taxonomy.js',
+      'js/engine.js','js/diagrams.js','js/puzzles.js','js/app.js'
+    ];
+    files.forEach(function (src) {
+      var s = document.createElement('script');
+      s.src = src + t; s.async = false;   // async=false preserves execution order
+      document.head.appendChild(s);
+    });
+  })();
+  </script>
+</body>
+</html>

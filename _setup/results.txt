@@ -1,0 +1,4 @@
+﻿START 06/09/2026 16:16:14
+Microsoft.VisualStudioCode => exit -1978335189
+EclipseAdoptium.Temurin.21.JDK => exit -1978335189
+GitHub.cli => exit -1978335189
