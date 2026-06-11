@@ -192,7 +192,7 @@ function makeSquare1() {
     return false;
   }
   const solvedSideCol = i => SIDE[(((Math.floor((i-1+12)/3))%4)+4)%4];   // static middle-band colour per slot
-  let rx=60, ry=-30; const DEF3=[60,-30], CX3=160, CY3=150, SC3=78;
+  let rx=-26, ry=-34; const DEF3=[-26,-34], CX3=160, CY3=150, SC3=78;   // face-up 3/4 (yellow top, two side faces)
   const SQ2=Math.SQRT2, SC=1/Math.cos(Math.PI/12);  // SC≈1.035 = where the square edge crosses a slot boundary; cube corners at √2
   const TY=0.95, TS=0.30, BY=-0.95, BS=-0.30;
   let spinTop=0, spinBot=0;                          // live extra rotation (deg) of each layer — for drag + snap animation
@@ -302,9 +302,11 @@ function makeSquare1() {
   }
   const rotateView=(dx,dy)=>{ ry+=dx*0.5; rx-=dy*0.5; };
   const recenter=()=>{ rx=DEF3[0]; ry=DEF3[1]; };
+  const snapView=(onFrame)=>{ const tx=Math.abs(rx-DEF3[0])<=Math.abs(rx+DEF3[0])?DEF3[0]:-DEF3[0], ty=Math.round((ry-DEF3[1])/90)*90+DEF3[1];   // settle to nearest face-up 3/4
+    const x0=rx,y0=ry; let t0=null; const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/200),e=1-Math.pow(1-k,3); rx=x0+(tx-x0)*e; ry=y0+(ty-y0)*e; onFrame&&onFrame(); if(k<1)requestAnimationFrame(step); }; requestAnimationFrame(step); };
   reset();
   return { reset, applyTokens, setTokens, svg, scramble, mount, render, animateMove,
-           svg3d, mount3d, render3d, animateMove3d, isSolved, turnLayer, setSpin, snapTurn, snapSlash, slash:doSlash, rotateView, recenter };
+           svg3d, mount3d, render3d, animateMove3d, isSolved, turnLayer, setSpin, snapTurn, snapSlash, slash:doSlash, rotateView, recenter, snapView };
 }
 
 /* ================================================================
@@ -578,7 +580,7 @@ function makeSkewb() {
     for (let k=0;k<4;k++) out.push({ poly:[C[k],M[k],M[(k+3)%4]], slot:k+1, corner:cidx(C[k]) });
     return out;
   }
-  let rx=28, ry=-32; const DEF=[28,-32], CX=160, CY=150, SC=86;
+  let rx=-26, ry=-34; const DEF=[-26,-34], CX=160, CY=150, SC=86;   // face-up 3/4 (white top, green front, red right)
   let _anim=null;                              // {moving:Set(globalFaceletIdx), axis, ang} during a turn animation
   function svg() {
     const M=_rmat3(rx,ry);
@@ -626,9 +628,11 @@ function makeSkewb() {
   }
   const rotateView=(dx,dy)=>{ ry+=dx*0.5; rx-=dy*0.5; };
   const recenter=()=>{ rx=DEF[0]; ry=DEF[1]; };
+  const snapView=(onFrame)=>{ const tx=Math.abs(rx-DEF[0])<=Math.abs(rx+DEF[0])?DEF[0]:-DEF[0], ty=Math.round((ry-DEF[1])/90)*90+DEF[1];   // settle to nearest face-up 3/4
+    const x0=rx,y0=ry; let t0=null; const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/200),e=1-Math.pow(1-k,3); rx=x0+(tx-x0)*e; ry=y0+(ty-y0)*e; onFrame&&onFrame(); if(k<1)requestAnimationFrame(step); }; requestAnimationFrame(step); };
   const nonUniform = () => { const out=[]; for(let f=0;f<6;f++){ const c=st[f*5]; for(let i=1;i<5;i++) if(st[f*5+i]!==c){out.push(f);break;} } return out; };
   reset();
-  return { reset, applyTokens, setTokens, scramble, svg, isSolved, animateMove, rotateView, recenter, screenRoles, nonUniform, state:()=>st.slice() };
+  return { reset, applyTokens, setTokens, scramble, svg, isSolved, animateMove, rotateView, recenter, snapView, screenRoles, nonUniform, state:()=>st.slice() };
 }
 
 /* ================================================================
@@ -702,7 +706,7 @@ function makeMegaminx() {
     for (let i=0;i<5;i++) out.push({ poly:[p[i],q[i],inner[(i+1)%5],inner[i]], slot:6+i });
     return out;
   }
-  let rx=18, ry=-26; const DEF=[18,-26], CX=160, CY=152, SC=74;
+  let rx=-162, ry=148.5; const DEF=[-162,148.5], CX=160, CY=152, SC=74;   // face-up 3/4 (U face on top, F centred-front, R visible)
   let _anim=null;                              // {moving:Set(globalFaceletIdx), axis:[..], ang:rad} during a turn animation
   function svg() {
     const M=_rmat3(rx,ry);
@@ -762,8 +766,10 @@ function makeMegaminx() {
   }
   const rotateView=(dx,dy)=>{ ry+=dx*0.5; rx-=dy*0.5; };
   const recenter=()=>{ rx=DEF[0]; ry=DEF[1]; };
+  const snapView=(onFrame)=>{ const tx=DEF[0], ty=DEF[1];   // 12 pentagons don't fit a 90° grid → settle back to the canonical face-up view
+    const x0=rx,y0=ry; let t0=null; const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/220),e=1-Math.pow(1-k,3); rx=x0+(tx-x0)*e; ry=y0+(ty-y0)*e; onFrame&&onFrame(); if(k<1)requestAnimationFrame(step); }; requestAnimationFrame(step); };
   const nonUniform = () => { const out=[]; for(let f=0;f<12;f++){ const c=st[f*11]; for(let i=1;i<11;i++) if(st[f*11+i]!==c){ out.push(f); break; } } return out; };
   reset();
-  return { reset, applyTokens, setTokens, scramble, svg, isSolved, animateMove, moveFromDrag, rotateView, recenter, screenRoles,
+  return { reset, applyTokens, setTokens, scramble, svg, isSolved, animateMove, moveFromDrag, rotateView, recenter, snapView, screenRoles,
            faceLetter:FACE_LETTER, neigh:NEIGH, nonUniform, state:()=>st.slice() };
 }

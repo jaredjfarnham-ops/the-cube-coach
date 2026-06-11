@@ -246,6 +246,7 @@ function attachSimPointer(el, getSim, onChange, hooks={}) {
     if (mode==='orbit') { sim.rotateView(e.clientX-sx, e.clientY-sy); sx=e.clientX; sy=e.clientY; onChange(); } });
   el.addEventListener('pointerup', e => {
     const sim=getSim();
+    const wasOrbit = mode==='orbit';
     if (mode==='pending' && turnV && sim) {
       const r=el.getBoundingClientRect();
       const dx=e.clientX-dnx, dy=e.clientY-dny;
@@ -260,8 +261,9 @@ function attachSimPointer(el, getSim, onChange, hooks={}) {
       }
     }
     mode=null; turnV=null; turnTip=null;
+    if (wasOrbit && sim && sim.snapView) sim.snapView(onChange);   // settle to the nearest face-up 3/4 view
   });
-  el.addEventListener('pointercancel', () => { mode=null; turnV=null; turnTip=null; });
+  el.addEventListener('pointercancel', () => { const sim=getSim(); const wasOrbit=mode==='orbit'; mode=null; turnV=null; turnTip=null; if (wasOrbit && sim && sim.snapView) sim.snapView(onChange); });
   el.addEventListener('dblclick', () => { const sim=getSim(); if (sim && sim.recenter) { sim.recenter(); onChange(); } });
 }
 /* trainer: orbit + click-to-turn for 3-D sims (Pyraminx), driving the timer */
@@ -332,7 +334,8 @@ document.getElementById('lessonText').addEventListener('click', e => {
   lessonSimEl.addEventListener('pointerdown', e => { if (!lessonSim || lessonView.classList.contains('hidden') || !lessonSim.rotateView) return;
     o={x:e.clientX,y:e.clientY}; try{lessonSimEl.setPointerCapture(e.pointerId);}catch(_){} });
   lessonSimEl.addEventListener('pointermove', e => { if(!o||!lessonSim)return; lessonSim.rotateView(e.clientX-o.x,e.clientY-o.y); o.x=e.clientX; o.y=e.clientY; renderLessonSim(); });
-  const end=()=>{o=null;}; lessonSimEl.addEventListener('pointerup',end); lessonSimEl.addEventListener('pointercancel',end);
+  const end=()=>{ const wasOrbit=!!o; o=null; if (wasOrbit && lessonSim && lessonSim.snapView) lessonSim.snapView(renderLessonSim); };   // settle to nearest face-up 3/4
+  lessonSimEl.addEventListener('pointerup',end); lessonSimEl.addEventListener('pointercancel',end);
   lessonSimEl.addEventListener('dblclick', () => { if (lessonSim && lessonSim.recenter) { lessonSim.recenter(); renderLessonSim(); } });
 })();
 document.getElementById('lsSimReplay').onclick    = () => { const row = lessonText.querySelector('.alg-ref-row.playing') || lessonText.querySelector('.alg-ref-row');
@@ -376,6 +379,15 @@ function makeCubeControls(cube, cubeEl, sceneEl, opts={}) {
   let enabled=false, dragTurns=false, keysActive=false;   // orbit when enabled; sticker-drag turns only if dragTurns; keyboard only if keysActive
   const faceMap = new Map();
   const apply = () => { cubeEl.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`; };
+  /* after an orbit, settle to the nearest face-up 3/4 view (top/front/right visible): pitch ±|DEF_RX|, yaw on the DEF_RY+90k grid */
+  function snapView() {
+    const tx = rx<=0 ? DEF_RX : -DEF_RX, ty = Math.round((ry-DEF_RY)/90)*90 + DEF_RY;
+    if (Math.abs(tx-rx)<0.4 && Math.abs(ty-ry)<0.4) { rx=tx; ry=ty; apply(); return; }
+    const x0=rx, y0=ry; let t0=null;
+    const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/200), e=1-Math.pow(1-k,3);
+      rx=x0+(tx-x0)*e; ry=y0+(ty-y0)*e; apply(); if(k<1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
   function rebuildMap() { faceMap.clear(); cube.cubies().forEach(c => [...c.el.children].forEach((fe,i) => faceMap.set(fe, {c, ln:FACE_N[i]}))); }
   const project = a => { const S = mvVec(viewRot(rx,ry), a); return {x:S.x, y:S.y}; };
   async function doTurn(df, dx, dy) {
@@ -414,7 +426,7 @@ function makeCubeControls(cube, cubeEl, sceneEl, opts={}) {
     if (Math.hypot(dx,dy) < 10) return;              // need a deliberate drag to turn
     mode=null; doTurn(downFace, dx, dy);             // one turn per drag
   });
-  const end = e => { if (mode){ try{ sceneEl.releasePointerCapture(e.pointerId); }catch(_){} } mode=null; };
+  const end = e => { const wasOrbit = mode==='orbit'; if (mode){ try{ sceneEl.releasePointerCapture(e.pointerId); }catch(_){} } mode=null; if (wasOrbit) snapView(); };
   sceneEl.addEventListener('pointerup', end);
   sceneEl.addEventListener('pointercancel', end);
   sceneEl.addEventListener('dblclick', () => { if (enabled) { rx=DEF_RX; ry=DEF_RY; apply(); } });
@@ -1264,6 +1276,7 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
   const end=()=>{ if (!st) return; const sim=playEntry&&playEntry.sim;
     if (sim && st.kind==='slash') { sim.snapSlash(() => renderSim(), () => updateStatus()); }
     else if (sim && st.kind==='layer') { sim.snapTurn(st.layer, st.deg, () => renderSim(), () => updateStatus()); }
+    else if (sim && st.kind==='orbit' && sim.snapView) { sim.snapView(() => { renderSim(); updateStatus(); }); }   // settle to nearest face-up 3/4
     st=null; };
   playSimEl.addEventListener('pointerup', end);
   playSimEl.addEventListener('pointercancel', end);
