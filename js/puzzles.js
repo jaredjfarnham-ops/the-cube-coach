@@ -192,7 +192,7 @@ function makeSquare1() {
     return false;
   }
   const solvedSideCol = i => SIDE[(((Math.floor((i-1+12)/3))%4)+4)%4];   // static middle-band colour per slot
-  let rx=-22.5, ry=-22.5; const DEF3=[-22.5,-22.5], CX3=160, CY3=150, SC3=78;   // gentle face-up 3/4 (22.5°)
+  let rx=-22.5, ry=-35; const DEF3=[-22.5,-35], CX3=160, CY3=150, SC3=78;   // face-up 3/4: X pitch 22.5°, Y yaw 35°
   const SQ2=Math.SQRT2, SC=1/Math.cos(Math.PI/12);  // SC≈1.035 = where the square edge crosses a slot boundary; cube corners at √2
   const TY=0.95, TS=0.30, BY=-0.95, BS=-0.30;
   let spinTop=0, spinBot=0;                          // live extra rotation (deg) of each layer — for drag + snap animation
@@ -580,7 +580,7 @@ function makeSkewb() {
     for (let k=0;k<4;k++) out.push({ poly:[C[k],M[k],M[(k+3)%4]], slot:k+1, corner:cidx(C[k]) });
     return out;
   }
-  let rx=-22.5, ry=-22.5; const DEF=[-22.5,-22.5], CX=160, CY=150, SC=86;   // gentle face-up 3/4 (22.5°)
+  let rx=-22.5, ry=-35; const DEF=[-22.5,-35], CX=160, CY=150, SC=86;   // face-up 3/4: X pitch 22.5°, Y yaw 35°
   let _anim=null;                              // {moving:Set(globalFaceletIdx), axis, ang} during a turn animation
   function svg() {
     const M=_rmat3(rx,ry);
