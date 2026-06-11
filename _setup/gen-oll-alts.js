@@ -55,7 +55,7 @@ const bundle = 'const LESSONS={};' +
       else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=4;    // wide (esp. r) forces a regrip — tier with L/B
       else if(b==='L'||b==='B') s+=4;                       // hard one-handed moves
       else if(b==='F') s+=3;                                // forces a regrip, but a touch easier than L/B
-      else if(b==='x'||b==='z') s+=1.5; }                   // R, U, D, y = 0 (D is fine one-handed)
+      else if(b==='x') s+=1.5; }                            // R, U, D, y, z = 0 (y/z rolls are fine one-handed; x flips aren't)
     // a wide move next to the opposite single turn on the same face (r R') is really a slice — bump to slice tier
     const fc=t=>{ const m=t.match(/^\\d*([RLUDFBrludfb])/); return m?m[1].toUpperCase():null; };
     const wd=t=>/w/.test(t) || /^\\d*[rludfb]/.test(t);
