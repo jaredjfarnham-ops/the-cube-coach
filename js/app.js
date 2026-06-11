@@ -645,7 +645,7 @@ function renderLesson(path) {
    ================================================================ */
 const sheetIntro = document.getElementById('sheetIntro');
 const sheetGrid  = document.getElementById('sheetGrid');
-const diagramFor = (kind, setup) => kind==='zbll' ? zbllSVG(setup) : kind==='pll' ? pllSVG(setup) : ollSVG(setup);   // setup = scramble that produces the case
+const diagramFor = (kind, setup) => kind==='zbll' ? zbllSVG(setup) : kind==='pll' ? pllSVG(setup) : kind==='cll' ? cll2SVG(setup) : ollSVG(setup);   // setup = scramble that produces the case
 
 /* ---- verify a user-entered algorithm actually solves a sheet case ---------------
    Each sheet has a GOAL describing what "solved" means for that case:
@@ -670,6 +670,7 @@ function _ccGoal(goal, st) {
                                        && cs.filter(c => c.pos.y===-1 && _ccType(c)==='edge').every(c => facing(c,_ccUP)==='U');
   if (goal === 'cmll')   return cs.filter(c => Math.abs(c.home.x)===1 && (c.home.y===0||c.home.y===1)).every(_ccHome)
                                        && cs.filter(c => c.home.y===-1 && _ccType(c)==='corner').every(_ccHome);
+  if (goal === 'corners') return cs.filter(c => _ccType(c)==='corner').every(_ccHome);   // 2×2 (CLL/EG): all corners home, ignore edges+centres
   return cs.every(c => _ccType(c)==='center' ? _ccPos(c) : _ccHome(c));   // 'solved' (ignore centre orientation)
 }
 /* returns 'ok' | 'notation' | 'wrongcase' */

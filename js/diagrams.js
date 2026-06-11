@@ -81,6 +81,37 @@ function zbllSVG(setup) {
   return `<svg viewBox="0 0 ${SPAN} ${SPAN}" xmlns="http://www.w3.org/2000/svg" class="case-svg">${body}</svg>`;
 }
 
+/* 2×2 (CLL / EG): only the four U-layer CORNERS — top sticker shows orientation
+   (yellow where the U-colour faces up, else the wrapped side colour), corner side
+   tabs show the side colours, arrows show the corner permutation. Built from the
+   same inverse-setup state as the other diagrams, restricted to |x|=|z|=1. */
+function cll2SVG(setup) {
+  const cs = llState(setup).cubies();
+  const S2 = 30, GAP2 = 5, TAB2 = 7, PAD2 = TAB2 + 8;
+  const SP = 2*PAD2 + 2*S2 + GAP2;
+  const cellc = v => PAD2 + (v===-1?0:1)*(S2+GAP2);          // top-left of a corner cell
+  const mid   = v => cellc(v) + S2/2;
+  const corner = (x,z) => cs.find(c => c.pos.y===-1 && c.pos.x===x && c.pos.z===z);
+  let body = `<rect x="0" y="0" width="${SP}" height="${SP}" rx="8" fill="#11142a"/>`;
+  body += `<defs><marker id="ah2" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e8ecff"/></marker></defs>`;
+  for (const x of [-1,1]) for (const z of [-1,1]) { const c=corner(x,z); const up=facing(c,UP);
+    body += rect(cellc(x), cellc(z), S2, S2, up==='U' ? LL_FILL : (COLOR_HEX[up]||BARE_FILL)); }
+  for (const x of [-1,1]) {                                   // front (z=1) + back (z=-1) tabs
+    let c=corner(x,1),  col=facing(c,{x:0,y:0,z:1});  body += rect(cellc(x), cellc(1)+S2+2,   S2, TAB2, col?COLOR_HEX[col]:TAB_OFF, 2);
+    c=corner(x,-1);     col=facing(c,{x:0,y:0,z:-1}); body += rect(cellc(x), cellc(-1)-2-TAB2, S2, TAB2, col?COLOR_HEX[col]:TAB_OFF, 2);
+  }
+  for (const z of [-1,1]) {                                   // right (x=1) + left (x=-1) tabs
+    let c=corner(1,z),  col=facing(c,{x:1,y:0,z:0});  body += rect(cellc(1)+S2+2,   cellc(z), TAB2, S2, col?COLOR_HEX[col]:TAB_OFF, 2);
+    c=corner(-1,z);     col=facing(c,{x:-1,y:0,z:0}); body += rect(cellc(-1)-2-TAB2, cellc(z), TAB2, S2, col?COLOR_HEX[col]:TAB_OFF, 2);
+  }
+  for (const c of cs) {                                       // corner permutation arrows
+    if (c.pos.y!==-1 || Math.abs(c.home.x)!==1 || Math.abs(c.home.z)!==1) continue;
+    if (c.pos.x===c.home.x && c.pos.z===c.home.z) continue;
+    body += `<line x1="${mid(c.pos.x)}" y1="${mid(c.pos.z)}" x2="${mid(c.home.x)}" y2="${mid(c.home.z)}" stroke="#e8ecff" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ah2)"/>`;
+  }
+  return `<svg viewBox="0 0 ${SP} ${SP}" xmlns="http://www.w3.org/2000/svg" class="case-svg">${body}</svg>`;
+}
+
 /* PLL: top solved-gray, rim tabs show side colors, arrows show the piece permutation. */
 function pllSVG(setup) {
   const cs = llState(setup).cubies();

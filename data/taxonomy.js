@@ -47,8 +47,8 @@ const PUZZLES = [
   { id:'2x2', name:'2×2  (Pocket Cube)', art:'cube2', methods:[
       { id:'beginner', name:'Beginner (Layer by Layer)', blurb:'One face, then the last layer.', items:[ {id:'fl',name:'First Layer'}, {id:'ll',name:'Last Layer'} ]},
       { id:'ortega', name:'Ortega (Varasano)', blurb:'Any face, orient, then permute both layers.', items:[ {id:'face',name:'Build a Face'}, {id:'oll',name:'OLL (orient)'}, {id:'pbl',name:'PBL (permute)'}, {id:'ortega-sheet',name:'Ortega — Algorithm Sheet'} ]},
-      { id:'cll', name:'CLL', blurb:'First layer, then the last layer in one step.', items:[ {id:'fl',name:'First Layer'}, {id:'cll',name:'CLL Trainer'}, {id:'cll-sheet',name:'CLL — Algorithm Sheet'} ]},
-      { id:'eg', name:'EG', blurb:'Advanced; first layer need not be pre-solved.', items:[ {id:'eg1',name:'EG-1 Trainer'}, {id:'eg2',name:'EG-2 Trainer'} ]},
+      { id:'cll', name:'CLL', blurb:'First layer, then the last layer in one step.', items:[ {id:'fl',name:'First Layer'}, {id:'cll',name:'CLL Trainer'}, {id:'cll-sheet',name:'CLL — Algorithm Sheet'}, {id:'cll-full-sheet',name:'CLL — Full Sheet'} ]},
+      { id:'eg', name:'EG', blurb:'Advanced; first layer need not be pre-solved.', items:[ {id:'eg1',name:'EG-1 Trainer'}, {id:'eg2',name:'EG-2 Trainer'}, {id:'eg1-sheet',name:'EG-1 — Algorithm Sheet'}, {id:'eg2-sheet',name:'EG-2 — Algorithm Sheet'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with random 2×2 scrambles; times saved to your profile.', items:[ {id:'solve',name:'2×2 Timer'} ]},
     ]},
   { id:'4x4', name:'4×4  (Rubik’s Revenge)', art:'cube4', methods:[
