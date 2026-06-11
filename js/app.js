@@ -208,19 +208,25 @@ const SIM = { sq1: sqSim, clock: clockSim, pyra: pyraSim, skewb: skewbSim, mega:
 const SIM_KEYS = {                                       // 3-D sims solvable with the camera-relative u/l/r/b keys
   pyra:  { sim: pyraSim,  map: { u:'U', l:'L', r:'R', b:'B' } },
   skewb: { sim: skewbSim, map: { u:'U', l:'L', r:'R', b:'B' } },
-  mega:  { sim: megaSim,  map: { u:'U', l:'L', r:'R', b:'B' } },
+  mega:  { sim: megaSim,  map: { u:'U', l:'L', r:'R', b:'B', f:'F' } },
 };
 const trainerSimEl = document.getElementById('trainerSim');
 const lessonSimEl   = document.getElementById('lessonSim');
 /* ---- shared SIM interaction (orbit + click-to-turn for 3-D sims like Pyraminx) ---- */
-function simKeyMove(sim, e, opts={}) {          // Pyraminx camera-relative: u/l/r/b → screen role; Ctrl (or Alt) = tip; Shift = prime
-  const role = { u:'top', l:'bl', r:'br', b:'back' }[e.key.toLowerCase()];
+function simKeyMove(sim, e, opts={}) {          // camera-relative screen-role keys: u/l/r/b, plus f (front) on Megaminx
+  const role = { u:'top', l:'bl', r:'br', b:'back', f:'front' }[e.key.toLowerCase()];
   if (!role) return;
-  e.preventDefault();
   const V = sim.screenRoles()[role];
+  if (V == null) return;                         // this sim has no such role (only Megaminx exposes 'front')
+  e.preventDefault();
   if (opts.onTurnStart) opts.onTurnStart();
-  const tip = e.ctrlKey || e.altKey;             // Pyraminx has no doubles, so the "double" modifier (Ctrl) turns the tip instead
-  const tok = (tip ? V.toLowerCase() : V) + (e.shiftKey ? "'" : '');
+  let tok;
+  if (sim.faceLetter) {                          // Megaminx has doubles: Ctrl = ×2, Shift = prime, Shift+Ctrl = 2'
+    tok = V + ((e.ctrlKey||e.altKey) ? 'd' : '') + (e.shiftKey ? "'" : '');
+  } else {                                       // Pyraminx/Skewb: Ctrl = tip, Shift = prime
+    const tip = e.ctrlKey || e.altKey;
+    tok = (tip ? V.toLowerCase() : V) + (e.shiftKey ? "'" : '');
+  }
   if (sim.animateMove) sim.animateMove(tok, 220, opts.onChange).then(() => { if (opts.onTurn) opts.onTurn(); });
   else { sim.applyTokens([tok]); if (opts.onChange) opts.onChange(); if (opts.onTurn) opts.onTurn(); }
 }
@@ -1165,7 +1171,7 @@ const PLAY_PUZZLES = [
   { id:'6x6', name:'6×6', kind:'cube', n:6 }, { id:'7x7', name:'7×7', kind:'cube', n:7 },
   { id:'pyra', name:'Pyraminx', kind:'sim', sim:pyraSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
   { id:'skewb', name:'Skewb', kind:'sim', sim:skewbSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
-  { id:'mega', name:'Megaminx', kind:'sim', sim:megaSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
+  { id:'mega', name:'Megaminx', kind:'sim', sim:megaSim, keys:{ u:'U', l:'L', r:'R', b:'B', f:'F' } },
   { id:'sq1', name:'Square-1', kind:'sim', sim:sqSim },     // interactive via drag (sqSim.turnLayer / slash)
   { id:'clock', name:'Clock', kind:'sim', sim:clockSim },   // interactive via clicks/drags (clockSim.turn)
 ];
@@ -1192,7 +1198,7 @@ function playSelect(entry) {
       !isSim   ? 'Drag a <b>sticker</b> to turn that layer; drag the <b>background</b> to rotate (double-click to recentre). Or the <b>keyboard</b> (3×3, camera-relative): R L U D F B · slices M E S · rotations x y z (Shift = prime, Ctrl = double).'
     : entry.id==='pyra'  ? 'Drag a <b>sticker</b> to turn its corner, or <b>keyboard</b> U L R B (the face in that screen spot) — <b>Shift</b> = prime, <b>Ctrl</b> = tip. Drag the <b>background</b> to rotate (double-click to recentre). <b>Del</b> resets.'
     : entry.id==='skewb' ? 'Drag a <b>corner sticker</b> to twist that corner, or <b>keyboard</b> U L R B (the corner in that screen spot, Shift = reverse). Drag the <b>background</b> to rotate (double-click to recentre). <b>Del</b> resets.'
-    : entry.id==='mega'  ? 'Drag any <b>sticker</b> to turn its face, or <b>keyboard</b> U L R B (the face in that screen spot, Shift = reverse). Drag the <b>background</b> to rotate (double-click to recentre). <b>Del</b> resets.'
+    : entry.id==='mega'  ? 'Drag any <b>sticker</b> to turn its face, or <b>keyboard</b> U L R B F (the face in that screen spot) — <b>Shift</b> = reverse, <b>Ctrl</b> = double (×2), <b>Shift+Ctrl</b> = double-reverse. Drag the <b>background</b> to rotate (double-click to recentre). <b>Del</b> resets.'
     : entry.id==='sq1'   ? 'Drag the <b>top</b> or <b>bottom</b> layer to rotate it (snaps to 30°); <b>click the middle band</b> (or press <b>/</b>) to slash. Drag the <b>background</b> to rotate the view. <b>Del</b> resets.'
     :                      'Click a <b>pin</b> to raise/lower it (on either face), then <b>drag a corner clock</b> to turn it and the pinned clocks. <b>Del</b> resets.';
   if (isSim) { playControls.setInteract({}); entry.sim.reset(); renderSim(); }

@@ -675,8 +675,9 @@ function makeMegaminx() {
         const c=t.replace(/['2]/g,'').toUpperCase(); if (!(c in FACE_LETTER)) return; f=FACE_LETTER[c];
         const n = t.includes('2') ? 2 : 1;                                   // 72° FIFTHS: a face has 5 positions, so ' inverts the count
         reps = t.includes("'") ? (5 - n) : n;                                // U=1, U'=4, U2=2, U2'=3 (U2 ≠ U2' on Megaminx!)
-      } else {                                                               // bare digit = face index (playground); only ' is a modifier
-        f = parseInt(t.replace(/'/g,''),10); if (!(f>=0&&f<12)) return; reps = t.includes("'") ? 4 : 1;
+      } else {                                                               // bare digit = face index; 'd' = double (×2 fifths), ' = prime
+        f = parseInt(t.replace(/[^0-9]/g,''),10); if (!(f>=0&&f<12)) return;
+        const n = /d/i.test(t) ? 2 : 1; reps = t.includes("'") ? (5 - n) : n;
       }
       for (let k=0;k<reps;k++) applyPerm(PERM[f]);
     });
@@ -723,7 +724,7 @@ function makeMegaminx() {
   function moveInfo(token) {                    // → {axis, angleDeg, moving} for animating, or null
     let f, reps;
     if (/^[A-Za-z]/.test(token)) { const c=token.replace(/['2]/g,'').toUpperCase(); if(!(c in FACE_LETTER)) return null; f=FACE_LETTER[c]; const n=token.includes('2')?2:1; reps=token.includes("'")?(5-n):n; }
-    else { f=parseInt(token.replace(/'/g,''),10); if(!(f>=0&&f<12)) return null; reps=token.includes("'")?4:1; }
+    else { f=parseInt(token.replace(/[^0-9]/g,''),10); if(!(f>=0&&f<12)) return null; const n=/d/i.test(token)?2:1; reps=token.includes("'")?(5-n):n; }
     const moving=new Set(); PERM[f].forEach((src,i)=>{ if(src!==i) moving.add(i); });
     const signed = reps<=2 ? reps : reps-5;     // turn the short way (−1,−2 for primes)
     return { axis:FN[f], angleDeg: signed*72, moving };
@@ -744,8 +745,9 @@ function makeMegaminx() {
     const v=FN.map((N,f)=>{ const r=_ap3(M,N); return { f, x:CX+SC*r[0], y:CY+SC*r[1], z:r[2] }; }).filter(p=>p.z>0.05);
     v.sort((a,b)=>a.y-b.y); const top=v[0];
     const lower=v.slice(1).sort((a,b)=>a.x-b.x);
-    const back=FN.map((N,f)=>{ const r=_ap3(M,N); return { f, z:r[2] }; }).sort((a,b)=>a.z-b.z)[0];
-    return { top:String((top||{f:0}).f), bl:String((lower[0]||top||{f:0}).f), br:String((lower[lower.length-1]||top||{f:0}).f), back:String(back.f) };
+    const zf=FN.map((N,f)=>{ const r=_ap3(M,N); return { f, z:r[2] }; });
+    const back=zf.slice().sort((a,b)=>a.z-b.z)[0], front=zf.slice().sort((a,b)=>b.z-a.z)[0];   // front = face most toward viewer (F key)
+    return { top:String((top||{f:0}).f), bl:String((lower[0]||top||{f:0}).f), br:String((lower[lower.length-1]||top||{f:0}).f), back:String(back.f), front:String(front.f) };
   }
   /* Drag a sticker → turn the face it's ON (the clicked face), direction from the drag's tangential
      sense about THAT face's screen centre. Predictable: drag the DR face and DR turns (never U). */
