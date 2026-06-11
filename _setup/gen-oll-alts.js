@@ -48,6 +48,19 @@ const bundle = 'const LESSONS={};' +
   function simplify(seq){ let toks=tokenize(seq); const base=t=>t.match(/^[A-Za-z]+w?/)[0]; const amt=t=>{let q=/2/.test(t)?2:1; if(/'/.test(t))q=(4-q)%4; return q;};
     for(;;){ const out=[]; let ch=false; for(const t of toks){ if(out.length&&base(out[out.length-1])===base(t)){ const b=base(t),q=(amt(out[out.length-1])+amt(t))%4; out.pop(); ch=true; if(q===1)out.push(b); else if(q===2)out.push(b+'2'); else if(q===3)out.push(b+"'"); } else out.push(t); } toks=out; if(!ch) break; }
     return toks.join(' '); }
+  // one-handed friendliness penalty (lower = better): R/U/y are free, slices & wide & L/D/B are costly
+  function ohScore(alg){ let s=0; const toks=tokenize(alg);
+    for(const t of toks){ const b=t.replace(/['2]/g,'');
+      if(/^[MES]$/.test(b)) s+=10;                       // M/E/S slices — need two hands
+      else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=8; // wide moves
+      else if(b==='L'||b==='D') s+=4; else if(b==='B') s+=3;
+      else if(b==='F') s+=1.5; else if(b==='x'||b==='z') s+=1.5; } // R, U, y = 0
+    return s + toks.length*0.1; }                        // tie-break: shorter
+  // pick the most OH-friendly alg as primary, rest as alts (OH order)
+  function pickOH(c, goal, pool){ const seen=new Set(), verified=[];
+    [c.moves, ...pool].forEach(a=>{ if(!solvesCase(goal, c.moves, a)) return; const s=simplify(a)||a; if(!solvesCase(goal,c.moves,s)) return; const tk=tokenize(s).join(' '); if(seen.has(tk)) return; seen.add(tk); verified.push(s); });
+    verified.sort((a,b)=>ohScore(a)-ohScore(b) || tokenize(a).length-tokenize(b).length);
+    const e={ name:c.name, group:c.group, moves: verified[0]||c.moves }; if(verified.length>1) e.alts=verified.slice(1,6); return e; }
 
   const OLL_SRC = ${JSON.stringify(ollSrc)}, PLL_SRC = ${JSON.stringify(pllSrc)};
   // ---- OLL: alts for each existing case (match by OLL number), + OH primary ----
@@ -60,23 +73,12 @@ const bundle = 'const LESSONS={};' +
     const seen = new Set([primTok]); const alts = [];
     verified.forEach(x => { const s = simplify(x.alg); if(!s) return; if(!solvesCase('orient', c.moves, s)) return; const tk=tokenize(s).join(' '); if(seen.has(tk)) return; seen.add(tk); alts.push(s); });
     if (alts.length) ollAlts[c.name] = alts.slice(0,5);
-    // OH primary: first OH-tagged verified (simplified), else keep existing primary
-    const ohPick = verified.find(x => x.oh);
-    const ohPrim = ohPick ? simplify(ohPick.alg) : c.moves;
-    const ohEntry = { name:c.name, group:c.group, moves: solvesCase('orient', c.moves, ohPrim)?ohPrim:c.moves };
-    const ohAlts = [c.moves, ...alts].filter(a => tokenize(a).join(' ')!==tokenize(ohEntry.moves).join(' '));
-    if (ohAlts.length) ohEntry.alts = ohAlts.slice(0,5);
-    ollOH.push(ohEntry);
+    ollOH.push(pickOH(c, 'orient', verified.map(x => x.alg)));   // OH primary = most one-handed-friendly
   });
   // ---- PLL OH sheet (match by PLL letter name; ids in pll.js are the names) ----
   const pllOH = [];
   ALG_SETS.pll.forEach(c => {
-    const cands = PLL_SRC[c.name] || [];
-    const verified = cands.filter(x => solvesCase('solved', c.moves, x.alg));
-    const ohPick = verified.find(x => x.oh);
-    const ohPrim = ohPick ? simplify(ohPick.alg) : c.moves;
-    const e = { name:c.name, group:c.group, moves: solvesCase('solved', c.moves, ohPrim)?ohPrim:c.moves };
-    pllOH.push(e);
+    pllOH.push(pickOH(c, 'solved', (PLL_SRC[c.name] || []).map(x => x.alg)));   // OH primary = most one-handed-friendly
   });
   ({ ollAlts, ollOH, pllOH });`;
 
