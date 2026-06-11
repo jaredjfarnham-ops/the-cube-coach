@@ -118,6 +118,7 @@
     if (cube.asString() !== str) { paintOut.innerHTML = `<span class="err">Those stickers don't form a real cube — a corner or edge has colours that can't exist (e.g. two stickers swapped). Check your colouring.</span>`; return; }
     const reason = solvableReason(cube);
     if (reason) { paintOut.innerHTML = `<span class="err">That cube can't be solved — ${reason}</span>`; return; }
+    if (str === SOLVED) { paintOut.innerHTML = `<div class="solver-sol-label">It's already solved. 🎉</div>`; return; }   // cubejs returns a no-op maneuver for solved, not ""
     paintOut.innerHTML = `<span class="muted">Solving…</span>`;
     await new Promise(r => setTimeout(r, 20));                 // let the message paint
     try {
