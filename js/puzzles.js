@@ -62,20 +62,20 @@ function makeSquare1() {
     }
     return { slots, pieces };
   }
-  let top, bot, PIECES, mid, CFLIP;     // mid = slice-layer orientation; CFLIP = per-corner mirror parity (odd # of slashes)
+  let top, bot, PIECES, midR, midL, CFLIP;     // midR/midL = each slice half's flip parity (odd # of slashes on that side); CFLIP = per-corner mirror parity
   function reset() {
     const T = solvedLayer(FT, 0), B = solvedLayer(FB, 8);
     top = T.slots.slice(); bot = B.slots.slice();
-    PIECES = Object.assign({}, T.pieces, B.pieces); mid = 0; CFLIP = {};
+    PIECES = Object.assign({}, T.pieces, B.pieces); midR = 0; midL = 0; CFLIP = {};
   }
   const rot = (arr, n) => { n = ((n % 12) + 12) % 12; return arr.slice(n).concat(arr.slice(0, n)); };
   const cutClear = arr => arr[0] !== arr[11] && arr[5] !== arr[6];     // no corner straddling either cut
-  function slash() {                                   // swap right halves (slots 0..5); flips the slice layer
-    const moved = new Set();                           // right-half pieces are mirrored by the 180° flip
-    for (let i = 0; i < 6; i++) { moved.add(top[i]); moved.add(bot[i]); }
-    for (let i = 0; i < 6; i++) { const t = top[i]; top[i] = bot[5-i]; bot[5-i] = t; }
+  function slash(side) {                               // side 0 = right half (slots 0–5), 1 = left half (slots 6–11); flips that half's slice
+    const off = side ? 6 : 0, moved = new Set();       // the flipped half's pieces are mirrored by the 180° flip
+    for (let i = 0; i < 6; i++) { moved.add(top[off+i]); moved.add(bot[off+i]); }
+    for (let i = 0; i < 6; i++) { const t = top[off+i]; top[off+i] = bot[off+5-i]; bot[off+5-i] = t; }
     moved.forEach(id => { if (PIECES[id] && PIECES[id].type === 'C') CFLIP[id] ^= 1; });   // toggle corner mirror parity once per piece
-    mid ^= 1;
+    if (side) midL ^= 1; else midR ^= 1;
   }
   function applyTokens(tokens) {
     tokens.forEach(tok => {
@@ -126,7 +126,7 @@ function makeSquare1() {
      a clean SQUARE when "fixed" (home / cube shape), and the offset "ship" (boat hull) shape once a
      slash has knocked it out of square — e.g. solved → (0,0)/(0,0). */
   function midSVG() {
-    const cx = (TC.x+BC.x)/2, cy = TC.y, s = 13, fixed = mid === 0;
+    const cx = (TC.x+BC.x)/2, cy = TC.y, s = 13, fixed = midR === 0 && midL === 0;
     const d = fixed
       ? `M${cx-s},${cy-s} L${cx+s},${cy-s} L${cx+s},${cy+s} L${cx-s},${cy+s} Z`          // square
       : `M${cx},${cy-s} L${cx+s},${cy+s} L${cx},${cy+s-7} L${cx-s},${cy+s} Z`;          // ship: convex back peak, 2 lines inward to a concave notch
@@ -177,7 +177,7 @@ function makeSquare1() {
   }
   /* ----- 3-D interactive view (cylinder/prism model) for the Virtual Cube playground ----- */
   function isSolved() {
-    if (mid !== 0) return false;                            // must be cube-shaped
+    if (midR !== 0 || midL !== 0) return false;             // must be cube-shaped (both slice halves aligned)
     const tf = PIECES[top[0]].face; if (!top.every(s => PIECES[s].face === tf)) return false;
     const bf = PIECES[bot[0]].face; if (!bot.every(s => PIECES[s].face === bf)) return false;
     if (tf === bf) return false;
@@ -196,7 +196,7 @@ function makeSquare1() {
   const SQ2=Math.SQRT2, SC=1/Math.cos(Math.PI/12);  // SC≈1.035 = where the square edge crosses a slot boundary; cube corners at √2
   const TY=0.95, TS=0.30, BY=-0.95, BS=-0.30;
   let spinTop=0, spinBot=0;                          // live extra rotation (deg) of each layer — for drag + snap animation
-  let slashAng=0, slashing=false;                    // slash animation: rotate the right half (slots 0–5) about the depth axis
+  let slashAng=0, slashing=false, slashSide=0;       // slash animation: rotate the slashing half (side 0=right slots 0–5, 1=left slots 6–11) about the depth axis
   const rotZ=(p,deg)=>{ const t=deg*Math.PI/180, c=Math.cos(t), s=Math.sin(t); return [p[0]*c-p[1]*s, p[0]*s+p[1]*c, p[2]]; };
   /* PIECE-BASED render: each piece (corner kite / edge triangle) emits only its OUTER surfaces (top cap + the
      outer side walls). Internal radial walls touch neighbours, so they're never drawn — pieces share boundary
@@ -225,7 +225,7 @@ function makeSquare1() {
     const emit=(arr,capY,shoY,name,spin)=>{ const ny=capY>0?1:-1;
       for (let i=0;i<12;i++){ const id=arr[i]; if (arr[(i+11)%12]===id) continue;     // only at a piece's START slot
         const pc=PIECES[id], isC=pc.type==='C', span=isC?2:1, attr=` data-layer="${name}" data-slot="${i}"`;
-        const tf = (slashAng && i<6) ? (p=>rotZ(p,slashAng)) : (p=>p);                 // right half flips during a slash
+        const tf = (slashAng && (slashSide===0 ? i<6 : i>=6)) ? (p=>rotZ(p,slashAng)) : (p=>p);   // the slashing half flips
         const a0=i*30+spin, a1=i*30+span*30+spin, ac=(a0+a1)/2;
         const W=(d0,r0,d1,r1,color)=>{ const md=(d0+d1)/2;
           add(tf([Math.cos(md*Math.PI/180),0,Math.sin(md*Math.PI/180)]),
@@ -248,11 +248,12 @@ function makeSquare1() {
     for (let i=0;i<12;i++){ if (i===0 || i===6 || solvedSideCol(i)!==solvedSideCol((i+11)%12) || !cur) { cur=[]; runs.push(cur); } cur.push(i); }
     runs.forEach(run => {
       const out=[]; run.forEach((i,k)=>{ const seg=bandOuter(i); if (k===0) out.push(seg[0]); out.push(seg[1]); });
-      // the right-half slice (slots 0–5) flips WITH the slash: persistent `mid`*180 lands the 0→180 tween seamlessly.
-      const ba = run[0]<6 ? (mid*180 + slashAng) : 0, tf = ba ? (p=>rotZ(p,ba)) : (p=>p);
+      // each slice half flips WITH its slash: persistent (midR/midL)*180, plus the live tween when that side is slashing.
+      const onSide = run[0]<6 ? 0 : 1;
+      const ba = (onSide===0 ? midR : midL)*180 + (slashAng && slashSide===onSide ? slashAng : 0), tf = ba ? (p=>rotZ(p,ba)) : (p=>p);
       const md=(out[0][1]+out[out.length-1][1])/2; let nr=[Math.cos(md*Math.PI/180),0,Math.sin(md*Math.PI/180)]; if (ba) nr=rotZ(nr,ba);
       const poly=out.map(([r,d])=>PT(r,d,BS)).concat(out.map(([r,d])=>PT(r,d,TS)).reverse()).map(tf);
-      add(nr, poly, solvedSideCol(run[0]), ` data-slash="1"`); });
+      add(nr, poly, solvedSideCol(run[0]), ` data-slash="${onSide?'L':'R'}"`); });
     polys.sort((a,b)=>a[0]-b[0]);
     return `<svg viewBox="0 0 320 300" xmlns="http://www.w3.org/2000/svg" class="sim-svg">${polys.map(p=>p[1]).join('')}</svg>`;
   }
@@ -269,12 +270,12 @@ function makeSquare1() {
     requestAnimationFrame(step);
   }
   /* animate the slash: tween the right half 0→180° about the depth axis, then commit `/` (lands seamlessly) */
-  function snapSlash(onFrame, onDone) {
-    if (slashing) return; slashing=true; let start=null;
+  function snapSlash(side, onFrame, onDone) {
+    if (slashing) return; slashing=true; slashSide=side?1:0; let start=null;
     const step = now => { if (start===null) start=now; const k=Math.min(1,(now-start)/300);
       const e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2; slashAng=180*e; if (onFrame) onFrame();
       if (k<1) requestAnimationFrame(step);
-      else { applyTokens(['/']); slashAng=0; slashing=false; if (onFrame) onFrame(); if (onDone) onDone(); } };
+      else { slash(slashSide); slashAng=0; slashing=false; if (onFrame) onFrame(); if (onDone) onDone(); } };
     requestAnimationFrame(step);
   }
   const doSlash=()=>applyTokens(['/']);
@@ -287,7 +288,7 @@ function makeSquare1() {
     return new Promise(resolve => {
       if (!container3d) { applyTokens([token]); return resolve(); }
       if (token === '/') {
-        let t0=null; const D=Math.max(220, dur||300);
+        let t0=null; const D=Math.max(220, dur||300); slashSide=0;   // lesson '/' = standard right slash
         const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/D); const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
           slashAng=180*e; render3d(); if(k<1) requestAnimationFrame(step); else { applyTokens(['/']); slashAng=0; render3d(); resolve(); } };
         requestAnimationFrame(step); return;
@@ -530,9 +531,11 @@ function makePyraminx() {
   }
   const rotateView=(dx,dy)=>{ ry+=dx*0.5; rx-=dy*0.5; };
   const recenter=()=>{ rx=DEF[0]; ry=DEF[1]; };
+  const snapView=(onFrame)=>{ const tx=DEF[0], ty=Math.round((ry-DEF[1])/120)*120+DEF[1];   // apex-up: keep the tilt, snap yaw to the nearest 120° (3-fold) view
+    const x0=rx,y0=ry; let t0=null; const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/200),e=1-Math.pow(1-k,3); rx=x0+(tx-x0)*e; ry=y0+(ty-y0)*e; onFrame&&onFrame(); if(k<1)requestAnimationFrame(step); }; requestAnimationFrame(step); };
   const nonUniform = () => { const out=[]; for(let f=0;f<4;f++){ const c=st[f*9]; for(let i=1;i<9;i++) if(st[f*9+i]!==c){out.push(f);break;} } return out; };
   reset();
-  return { reset, applyTokens, setTokens, scramble, svg, isSolved, animateMove, rotateView, recenter, screenRoles, nonUniform, state:()=>st.slice() };
+  return { reset, applyTokens, setTokens, scramble, svg, isSolved, animateMove, rotateView, recenter, snapView, screenRoles, nonUniform, state:()=>st.slice() };
 }
 
 /* ================================================================
@@ -766,7 +769,7 @@ function makeMegaminx() {
   }
   const rotateView=(dx,dy)=>{ ry+=dx*0.5; rx-=dy*0.5; };
   const recenter=()=>{ rx=DEF[0]; ry=DEF[1]; };
-  const snapView=(onFrame)=>{ const tx=DEF[0], ty=DEF[1];   // 12 pentagons don't fit a 90° grid → settle back to the canonical face-up view
+  const snapView=(onFrame)=>{ const tx=DEF[0], ty=Math.round((ry-DEF[1])/72)*72+DEF[1];   // pentagon-up: keep the tilt, snap yaw to the nearest 72° (5-fold) view
     const x0=rx,y0=ry; let t0=null; const step=now=>{ if(t0===null)t0=now; const k=Math.min(1,(now-t0)/220),e=1-Math.pow(1-k,3); rx=x0+(tx-x0)*e; ry=y0+(ty-y0)*e; onFrame&&onFrame(); if(k<1)requestAnimationFrame(step); }; requestAnimationFrame(step); };
   const nonUniform = () => { const out=[]; for(let f=0;f<12;f++){ const c=st[f*11]; for(let i=1;i<11;i++) if(st[f*11+i]!==c){ out.push(f); break; } } return out; };
   reset();

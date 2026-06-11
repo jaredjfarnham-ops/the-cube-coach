@@ -1431,7 +1431,7 @@ document.addEventListener('keydown', e => {
   if (e.metaKey) return;
   const sim = playEntry.sim;
   if (e.key==='Delete') { e.preventDefault(); sim.reset(); playHist=[]; playScrText.textContent=''; renderSim(); updateStatus(); return; }
-  if (playEntry.id==='sq1') { if (e.key==='/') { e.preventDefault(); sim.snapSlash(()=>renderSim(), ()=>updateStatus()); } return; }   // Square-1: / = slash (animated)
+  if (playEntry.id==='sq1') { if (e.key==='/') { e.preventDefault(); sim.snapSlash(0, ()=>renderSim(), ()=>updateStatus()); } return; }   // Square-1: / = right slash (animated)
   if (sim.screenRoles) { simKeyMove(sim, e, { onChange:()=>{ renderSim(); updateStatus(); } }); return; }   // Pyraminx / Skewb / Megaminx
   if (e.altKey) return;
   const base = playEntry.keys && playEntry.keys[e.key.toLowerCase()]; if (!base) return;
@@ -1447,7 +1447,7 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
     if (!playEntry || playEntry.id!=='sq1') return;
     const layerEl=e.target.closest('[data-layer]'), slashEl=e.target.closest('[data-slash]');
     if (layerEl)      st={ kind:'layer', layer:layerEl.dataset.layer, sx0:e.clientX, deg:0 };
-    else if (slashEl) st={ kind:'slash' };
+    else if (slashEl) st={ kind:'slash', side: slashEl.dataset.slash==='L' ? 1 : 0 };   // flip whichever half was clicked
     else              st={ kind:'orbit', sx:e.clientX, sy:e.clientY };
     try{ playSimEl.setPointerCapture(e.pointerId); }catch(_){}
   });
@@ -1457,7 +1457,7 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
     else if (st.kind==='layer') { st.deg=-(e.clientX-st.sx0)*1.2; sim.setSpin(st.layer, st.deg); renderSim(); }   // ~25px = 30°, sign follows the mouse
   });
   const end=()=>{ if (!st) return; const sim=playEntry&&playEntry.sim;
-    if (sim && st.kind==='slash') { sim.snapSlash(() => renderSim(), () => updateStatus()); }
+    if (sim && st.kind==='slash') { sim.snapSlash(st.side, () => renderSim(), () => updateStatus()); }
     else if (sim && st.kind==='layer') { sim.snapTurn(st.layer, st.deg, () => renderSim(), () => updateStatus()); }
     else if (sim && st.kind==='orbit' && sim.snapView) { sim.snapView(() => { renderSim(); updateStatus(); }); }   // settle to nearest face-up 3/4
     st=null; };
