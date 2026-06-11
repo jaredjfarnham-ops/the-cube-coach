@@ -465,12 +465,17 @@ function makePyraminx() {
   const FC = FV.map(([a,b,c]) => GV.map(tri => tri.map(([wa,wb,wc]) =>
     [VT[a][0]*wa+VT[b][0]*wb+VT[c][0]*wc, VT[a][1]*wa+VT[b][1]*wb+VT[c][1]*wc, VT[a][2]*wa+VT[b][2]*wb+VT[c][2]*wc])));
   const FN = FV.map(([a,b,c]) => [ (VT[a][0]+VT[b][0]+VT[c][0])/3, (VT[a][1]+VT[b][1]+VT[c][1])/3, (VT[a][2]+VT[b][2]+VT[c][2])/3 ]);
-  let rx=48, ry=-46;          // shows 3 faces (verified), tip toward viewer
-  const DEF=[48,-46];
+  let rx=0, ry=0;             // orbit deltas FROM the resting view R0 (Yellow flat on the bottom, Green centred in front)
+  const DEF=[0,0];
+  /* A 2-axis (pitch/yaw, no roll) camera can't level a tetra resting on a face, so bake the resting
+     orientation into R0: it maps yellow's normal to straight-down and green's normal to centred-toward-viewer.
+     The live view is rmat(rx,ry)·R0, so orbiting still works and recentre returns here. */
+  const R0=[[0.70710678,-0.70710678,0],[-0.57735027,-0.57735027,-0.57735027],[0.40824829,0.40824829,-0.81649658]];
+  const mul3=(A,B)=>A.map(r=>[0,1,2].map(j=>r[0]*B[0][j]+r[1]*B[1][j]+r[2]*B[2][j]));
   function rmat(rxd,ryd){ const rX=rxd*Math.PI/180, rY=ryd*Math.PI/180;
     const Rx=[[1,0,0],[0,Math.cos(rX),-Math.sin(rX)],[0,Math.sin(rX),Math.cos(rX)]];
     const Ry=[[Math.cos(rY),0,Math.sin(rY)],[0,1,0],[-Math.sin(rY),0,Math.cos(rY)]];
-    return Rx.map((r,i)=>[0,1,2].map(j=>r[0]*Ry[0][j]+r[1]*Ry[1][j]+r[2]*Ry[2][j])); }
+    return mul3(Rx.map((r,i)=>[0,1,2].map(j=>r[0]*Ry[0][j]+r[1]*Ry[1][j]+r[2]*Ry[2][j])), R0); }
   const ap=(M,p)=>[M[0][0]*p[0]+M[0][1]*p[1]+M[0][2]*p[2], M[1][0]*p[0]+M[1][1]*p[1]+M[1][2]*p[2], M[2][0]*p[0]+M[2][1]*p[1]+M[2][2]*p[2]];
   const CX=160, CY=150, SC=72;
   const DOM=[0,0,0,1,1,2,0,1,2];     // facelet → which of the face's 3 vertices it belongs to (for click-to-turn)
