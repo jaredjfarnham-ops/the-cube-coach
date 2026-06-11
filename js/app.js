@@ -630,14 +630,24 @@ function renderSheet(path) {
   sheetIntro.innerHTML = `<h2>${L.title}</h2>` + (L.intro||[]).map(p=>`<p>${p}</p>`).join('')
     + `<p class="learn-hint"><b>Right-click</b> a case to mark your progress: ⚫ unlearned → 🟡 learning → 🟢 learned (saved on this device).</p>`;
   sheetGrid.innerHTML = '';
+  const fmtAlg = m => (Array.isArray(m) ? m.join(' ') : m).replace(/'/g,'′');
   set.forEach(a => {
+    const variants = [a.moves, ...(a.alts || [])];     // primary algorithm + any alternatives, click ⟳ to cycle
+    let vi = 0;
     const card = document.createElement('button'); card.className = 'case-card learn-' + getLearn(L.set, a.name);
     card.innerHTML = `<span class="learn-dot"></span>
       <div class="case-dia">${diagramFor(L.kind, invertSeq(a.moves))}</div>
       <div class="case-name">${a.name}</div>
-      <div class="case-alg">${(Array.isArray(a.moves)?a.moves.join(' '):a.moves).replace(/'/g,'′')}</div>`
-      + (a.alt ? `<div class="case-alt">alt: ${a.alt.replace(/'/g,'′')}</div>` : '');
-    card.onclick = () => { sheetGrid.querySelectorAll('.case-card').forEach(c=>c.classList.remove('sel')); card.classList.add('sel'); sheetPlayer.arm(a.moves); sheetPlayer.play(); };
+      <div class="case-alg"></div>`
+      + (variants.length>1 ? `<span class="case-altbtn" title="Show another algorithm for this case">⟳ <span class="altn"></span></span>` : '')
+      + (a.alt ? `<div class="case-alt">${a.alt.replace(/'/g,'′')}</div>` : '');
+    const algEl = card.querySelector('.case-alg'), altnEl = card.querySelector('.altn');
+    const showVar = () => { algEl.textContent = fmtAlg(variants[vi]); if (altnEl) altnEl.textContent = `${vi+1}/${variants.length}`; };
+    showVar();
+    const selectCard = () => { sheetGrid.querySelectorAll('.case-card').forEach(c=>c.classList.remove('sel')); card.classList.add('sel'); };
+    card.onclick = () => { selectCard(); sheetPlayer.arm(variants[vi]); sheetPlayer.play(); };
+    const altBtn = card.querySelector('.case-altbtn');
+    if (altBtn) altBtn.onclick = e => { e.stopPropagation(); vi = (vi+1) % variants.length; showVar(); selectCard(); sheetPlayer.arm(variants[vi]); sheetPlayer.play(); };
     card.addEventListener('contextmenu', e => { e.preventDefault(); const s = cycleLearn(L.set, a.name);
       card.classList.remove('learn-0','learn-1','learn-2'); card.classList.add('learn-' + s); });
     sheetGrid.appendChild(card);

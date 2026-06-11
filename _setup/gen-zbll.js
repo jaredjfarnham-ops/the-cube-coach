@@ -26,9 +26,9 @@ const bundle = 'const LESSONS={};' +
   const ORI={H:'H',L:'L',Pi:'Pi',S:'Sune',T:'T',U:'U',aS:'Anti-Sune'};
   const out=[];
   for(const ori in zbllMap)for(const ec in zbllMap[ori])for(const cn in zbllMap[ori][ec]){
-    const algs=zbllMap[ori][ec][cn]; const alg=algs.find(valid);
-    if(!alg){ out.push({bad:ori+'/'+ec+'/'+cn}); continue; }
-    out.push({ori:ORI[ori]||ori, key:canon(alg), moves:alg});
+    const valids=zbllMap[ori][ec][cn].filter(valid);
+    if(!valids.length){ out.push({bad:ori+'/'+ec+'/'+cn}); continue; }
+    out.push({ori:ORI[ori]||ori, key:canon(valids[0]), moves:valids[0], alts:valids.slice(1,5)});  // primary + up to 4 verified alternatives
   }
   out;`;
 const cases = vm.runInContext(bundle, ctx, { filename: 'b.js' });
@@ -51,7 +51,9 @@ ORDER.forEach(k => { sets[GROUP[k].id] = []; });
 cases.forEach(c => {
   const g = GROUP[c.key]; if (!g) { console.error('unknown key', c.key); process.exit(1); }
   counters[g.id] = counters[g.id] || {}; counters[g.id][c.ori] = (counters[g.id][c.ori] || 0) + 1;
-  sets[g.id].push({ name: `${c.ori} #${counters[g.id][c.ori]}`, moves: c.moves });
+  const entry = { name: `${c.ori} #${counters[g.id][c.ori]}`, moves: c.moves };
+  if (c.alts && c.alts.length) entry.alts = c.alts;
+  sets[g.id].push(entry);
 });
 
 // emit data/zbll-sheets.js
