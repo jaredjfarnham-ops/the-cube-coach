@@ -487,6 +487,11 @@
 .stats-table td.muted { color: var(--muted); }
 .stats-table td.dnf { color: #ff6b6b; }
 .stats-table tbody tr:hover td { background: rgba(255,255,255,.03); }
+/* clickable per-event rows drive the trend chart */
+.stats-table tr.ev-row { cursor: pointer; }
+.stats-table tr.ev-row.sel td { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.stats-table tr.ev-row.sel td.ev { color: var(--accent-2); }
+.stats-table tr.ev-row.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent-2); }
 .stats-trend { font-family: inherit; }
 .stats-trend.up { color: var(--accent-2); }
 .stats-trend.down { color: #ff8c6b; }

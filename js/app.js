@@ -1309,6 +1309,7 @@ function openStats() {
    ================================================================ */
 const statsView = document.getElementById('view-stats');
 document.getElementById('statsGroupBy').addEventListener('change', e => { statsGroupBy = e.target.value; renderStatsView(); });
+document.getElementById('statsEvents').addEventListener('click', e => { const tr=e.target.closest('tr[data-eid]'); if (!tr) return; statsSelEvent=tr.dataset.eid; renderStatsView(); });
 const STATS_PZNAME = (() => { const m={}; (typeof PUZZLES!=='undefined'?PUZZLES:[]).forEach(p=>{ m[p.id]=p.name.split('(')[0].trim(); }); return m; })();
 function statsLabel(setId) {
   const titleCase = s => s.replace(/\b\w/g, c => c.toUpperCase());
@@ -1334,6 +1335,7 @@ function statsMeanSd(solves) {
   return { n, mean, sd:Math.sqrt(variance) };
 }
 let statsGroupBy = 'week';                               // Solve | Hour | Day | Week | Month — x-axis granularity of the trend chart
+let statsSelEvent = null;                                // event id whose trend the chart shows (null → the most-solved event)
 function statsBucketStart(t, g) {
   const d=new Date(t);
   if (g==='hour') { d.setMinutes(0,0,0); return d; }
@@ -1406,17 +1408,18 @@ function renderStatsView() {
     if (singles.length>=6) { const k=Math.floor(singles.length/3); const early=singles.slice(0,k), late=singles.slice(-k);
       const mean=a=>a.reduce((x,y)=>x+y,0)/a.length; const em=mean(early), lm=mean(late), pct=(em-lm)/em*100; const up=pct>=0;
       tcls=Math.abs(pct)<1?'':up?'up':'down'; trend=(up?'▼ ':'▲ ')+Math.abs(pct).toFixed(0)+'%'; } else trend='—';
-    return { n, best, ao5, ao12, trend, tcls, label:statsLabel(e.id) };
+    return { id:e.id, n, best, ao5, ao12, trend, tcls, label:statsLabel(e.id) };
   }).sort((a,b)=>b.n-a.n);
+  const top = sets.slice().sort((a,b)=>b.solves.length-a.solves.length)[0];
+  const sel = sets.find(e=>e.id===statsSelEvent) || top;     // the trend chart follows the clicked event row
   let evHtml='';
-  rows.forEach(r => { evHtml+=`<tr><td class="ev">${r.label}</td><td>${r.n}</td><td>${r.best==null?'—':fmt(r.best)}</td>`
+  rows.forEach(r => { evHtml+=`<tr class="ev-row${r.id===sel.id?' sel':''}" data-eid="${r.id}" title="Show this event in the chart"><td class="ev">${r.label}</td><td>${r.n}</td><td>${r.best==null?'—':fmt(r.best)}</td>`
     +`<td class="${r.ao5==='dnf'?'dnf':''}">${fmtAvg(r.ao5)}</td><td class="${r.ao12==='dnf'?'dnf':''}">${fmtAvg(r.ao12)}</td>`
     +`<td class="stats-trend ${r.tcls}">${r.trend}</td></tr>`; });
   eventsEl.innerHTML=`<table class="stats-table"><thead><tr><th>Event / Mode</th><th>Solves</th><th>Best</th><th>Ao5</th><th>Ao12</th><th>Trend</th></tr></thead><tbody>${evHtml}</tbody></table>`;
-  const top = sets.slice().sort((a,b)=>b.solves.length-a.solves.length)[0];
-  const g = statsGroupBy, weeks = statsBuckets(top.solves, g);
+  const g = statsGroupBy, weeks = statsBuckets(sel.solves, g);
   const GL = { solve:'by solve', hour:'by hour', day:'by day', week:'by week', month:'by month' }[g];
-  trendTtl.textContent='Improvement over time — '+statsLabel(top.id)+' ('+GL+')';
+  trendTtl.textContent='Improvement over time — '+statsLabel(sel.id)+' ('+GL+')';
   chartEl.innerHTML=statsChartSVG(weeks, g); weeksEl.innerHTML = g==='solve' ? '' : statsBucketTable(weeks, g);
   const flat=[]; sets.forEach(e => { const lbl=statsLabel(e.id); e.solves.forEach(s=>flat.push({s,lbl})); });
   flat.sort((a,b)=>b.s.t-a.s.t);
