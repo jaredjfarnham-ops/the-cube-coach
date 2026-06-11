@@ -291,7 +291,7 @@ function attachSimPointer(el, getSim, onChange, hooks={}) {
 attachSimPointer(trainerSimEl,
   () => (SIM[trPuzzle] && SIM[trPuzzle].screenRoles && trCubeMode==='virtual' && !trView.classList.contains('hidden')) ? SIM[trPuzzle] : null,
   () => { trainerSimEl.innerHTML = SIM[trPuzzle].svg(); },
-  { onTurnStart: () => { if (trState==='idle') startSolve(); },
+  { onTurnStart: () => { tryStartSolve(); },
     onTurn:      () => { if (trState==='running' && SIM[trPuzzle].isSolved()) stopSolve(); } });
 /* a play/step/reset player for a sim lesson (animates a token sequence from solved) */
 function makeSimPlayer(sim, container, readoutEl) {
@@ -487,7 +487,7 @@ let trCubeMode = 'physical';
 const trainerCubeEl = document.getElementById('trainerCube');
 const trCubeControls = makeCubeControls(tcube, trainerCubeEl, trainerCubeEl.closest('.scene'), {
   isActive:    () => !trView.classList.contains('hidden') && CUBE_N[trPuzzle]===3,        // keyboard context: 3×3 only for now
-  onTurnStart: () => { if (trCubeMode!=='physical' && trState==='idle') startSolve(); },  // start timing on first move
+  onTurnStart: () => { if (trCubeMode!=='physical') tryStartSolve(); },  // start timing on first move (gated by post-solve cooldown)
   onTurn:      () => { if (trCubeMode!=='physical' && trState==='running' && cubeSolvedByColor(tcube)) stopSolve(); },  // auto-stop when solved (any orientation)
   onReset:     () => resetAttempt(),                                                       // Del = restart the current scramble
 });
@@ -511,7 +511,7 @@ document.addEventListener('keydown', e => {
   if (e.metaKey) return;                          // Ctrl is allowed through — it's the tip modifier for sims (handled in simKeyMove)
   if (e.key==='Delete') { e.preventDefault(); resetAttempt(); return; }
   simKeyMove(sk.sim, e, {
-    onTurnStart: () => { if (trState==='idle') startSolve(); },
+    onTurnStart: () => { tryStartSolve(); },
     onChange:    () => { trainerSimEl.innerHTML = sk.sim.svg(); },
     onTurn:      () => { if (trState==='running' && sk.sim.isSolved()) stopSolve(); },
   });
@@ -536,7 +536,7 @@ const clockActive = () => trPuzzle==='clock' && trCubeMode==='virtual' && !trVie
     drag.acc += dd; drag.last = a;
     const hours = Math.round(drag.acc / (Math.PI/6));
     if (hours !== drag.applied) {
-      if (trState==='idle') startSolve();
+      tryStartSolve();
       clockSim.turn(drag.side, drag.key, hours-drag.applied); drag.applied=hours; trainerSimEl.innerHTML=clockSim.svg();
       if (trState==='running' && clockSim.isSolved()) stopSolve();
     }
@@ -1001,12 +1001,15 @@ function renderHistory() {
 function reloadTimes() { trSolves = getSolves(statsKey()); renderStats(); renderHistory(); }
 function tick() { trTimerEl.textContent = PREFS.hideTimer ? 'solving…' : fmt(performance.now()-trStart); trRAF = requestAnimationFrame(tick); }
 let trInspStart=0, trInspRAF=0, trPenalty=0;
+let trCooldownUntil = 0;   // brief lockout after a solve so a still-held mouse can't auto-start the next virtual solve on reset
 function startSolve() { trState='running'; trStart=performance.now(); trTimerEl.classList.remove('armed','inspecting'); tick(); }
+function tryStartSolve() { if (trState!=='idle' || performance.now() < trCooldownUntil) return; startSolve(); }   // virtual-solve start, gated by the post-solve cooldown
 function startInspection() { trState='inspecting'; trInspStart=performance.now(); trTimerEl.classList.remove('armed'); trTimerEl.classList.add('inspecting'); inspTick(); }
 function inspTick() { const left = 15 - (performance.now()-trInspStart)/1000; trTimerEl.textContent = left<=0 ? '+'+(-left).toFixed(1) : left.toFixed(1); trInspRAF = requestAnimationFrame(inspTick); }
 function endInspection() { const insp = (performance.now()-trInspStart)/1000; cancelAnimationFrame(trInspRAF); trPenalty = insp>17 ? 'dnf' : insp>15 ? 2000 : 0; startSolve(); }
 function stopSolve() {
   cancelAnimationFrame(trRAF); trState='idle'; trTimerEl.classList.remove('armed');
+  trCooldownUntil = performance.now() + 1000;   // ignore solve-starts for 1s (mouse is often still down through the reset)
   const rawMs = performance.now()-trStart;
   const p = trPenalty==='dnf' ? 'dnf' : trPenalty===2000 ? 2 : 0; trPenalty=0;
   addSolve(statsKey(), rawMs, p, curScramble());
