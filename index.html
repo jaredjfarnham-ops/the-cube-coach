@@ -29,6 +29,7 @@
           <div class="user-note">Profiles &amp; times are saved on this device. A sign-in can sync them across devices later.</div>
         </div>
       </div>
+      <button class="theme-toggle" id="solverBtn" title="Solver">🪄</button>
       <button class="theme-toggle" id="prefsBtn" title="Settings">⚙</button>
       <button id="themeToggle" class="theme-toggle" title="Toggle light/dark">🌙</button>
     </div>
@@ -277,6 +278,35 @@
     </div>
   </div>
 
+  <!-- SOLVER (easter-egg) -->
+  <div id="solverModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head"><h2>🪄 Solver</h2><button id="solverClose" class="modal-x" title="Close">✕</button></div>
+      <div class="modal-body">
+        <p class="solver-joke">Here, a solver — because you're too lazy to click an inch to the left.</p>
+        <div class="solver-tabs">
+          <button class="solver-tab active" data-mode="reverse">Reverse a scramble</button>
+          <button class="solver-tab" data-mode="paint">Color-pick the cube</button>
+        </div>
+        <div class="solver-pane" id="solverReverse">
+          <textarea id="solverScramble" rows="2" placeholder="Paste a scramble, e.g. R U R' U' F2 L D B2"></textarea>
+          <button class="ctl primary" id="solverReverseBtn">Solve (reverse it)</button>
+          <div class="solver-out" id="solverReverseOut"></div>
+        </div>
+        <div class="solver-pane hidden" id="solverPaint">
+          <p class="solver-hint">Pick a colour, then paint the stickers. Centres are fixed. Then hit Solve.</p>
+          <div class="solver-palette" id="solverPalette"></div>
+          <div class="solver-net" id="solverNet"></div>
+          <div class="solver-actions">
+            <button class="ctl" id="solverPaintReset">Reset to solved</button>
+            <button class="ctl primary" id="solverPaintBtn">Solve</button>
+          </div>
+          <div class="solver-out" id="solverPaintOut"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Load all modules in order, with a per-load cache-buster so edits always take effect
        (harmless for the file:// double-click use; fixes stale-cache on the dev server). -->
   <script>
@@ -284,10 +314,11 @@
     var t = '?t=' + Date.now();
     var files = [
       'js/vendor/supabase.umd.js',   // cloud SDK, vendored locally (no flaky external CDN; cloud.js degrades if absent)
+      'js/vendor/cubejs.js',         // Kociemba two-phase solver (global Cube), used by the color-pick solver
       'data/notation.js','data/lessons.js','data/lessons-extra.js','data/algs.js','data/cfop-sets.js',
-      'data/algs-sheets.js','data/zbll-sheets.js','data/pll-alts.js',
+      'data/algs-sheets.js','data/zbll-sheets.js','data/pll-alts.js','data/cmll-sheets.js','data/coll-sheets.js',
       'data/probabilities.js','data/nxn.js','data/events.js','data/methods.js','data/taxonomy.js',
-      'js/engine.js','js/diagrams.js','js/puzzles.js','js/app.js','js/cloud.js'
+      'js/engine.js','js/diagrams.js','js/puzzles.js','js/app.js','js/cloud.js','js/solver.js'
     ];
     files.forEach(function (src) {
       var s = document.createElement('script');

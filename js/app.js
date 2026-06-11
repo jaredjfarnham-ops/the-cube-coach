@@ -157,6 +157,27 @@ const getSolves = setId => (Profiles.data().times[setId] = Profiles.data().times
 function addSolve(setId, ms, p) { getSolves(setId).push({ ms: Math.round(ms), p: p || 0, t: Date.now() }); Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 function clearSolves(setId) { Profiles.data().times[setId] = []; Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 
+/* custom algorithms a user adds to a sheet case, and which algorithm they prefer to see.
+   Stored per current profile (so the account profile carries them) and mirrored to the cloud. */
+const algStoreKey = (set, name) => set + '/' + name;
+const getCustomAlgs = (set, name) => ((Profiles.data().custom || {})[algStoreKey(set, name)] || []).slice();
+const getAlgPref    = (set, name) => (Profiles.data().algpref || {})[algStoreKey(set, name)] || null;
+function addCustomAlg(set, name, alg) {
+  const d = Profiles.data(); (d.custom = d.custom || {}); const k = algStoreKey(set, name);
+  const l = (d.custom[k] = d.custom[k] || []); if (!l.includes(alg)) l.push(alg);
+  Profiles.save(); if (window.cloudSaveAlgs) cloudSaveAlgs();
+}
+function removeCustomAlg(set, name, alg) {
+  const d = Profiles.data(); if (!d.custom) return; const k = algStoreKey(set, name);
+  d.custom[k] = (d.custom[k] || []).filter(a => a !== alg); if (!d.custom[k].length) delete d.custom[k];
+  Profiles.save(); if (window.cloudSaveAlgs) cloudSaveAlgs();
+}
+function setAlgPref(set, name, alg) {
+  const d = Profiles.data(); (d.algpref = d.algpref || {}); const k = algStoreKey(set, name);
+  if (alg) d.algpref[k] = alg; else delete d.algpref[k];
+  Profiles.save(); if (window.cloudSaveAlgs) cloudSaveAlgs();
+}
+
 /* ---------- User menu UI ---------- */
 const userBtn = document.getElementById('userBtn'), userPanel = document.getElementById('userPanel'),
       userNameEl = document.getElementById('userName'), userList = document.getElementById('userList'), userInput = document.getElementById('userInput');
@@ -625,34 +646,147 @@ function renderLesson(path) {
 const sheetIntro = document.getElementById('sheetIntro');
 const sheetGrid  = document.getElementById('sheetGrid');
 const diagramFor = (kind, setup) => kind==='zbll' ? zbllSVG(setup) : kind==='pll' ? pllSVG(setup) : ollSVG(setup);   // setup = scramble that produces the case
+
+/* ---- verify a user-entered algorithm actually solves a sheet case ---------------
+   Each sheet has a GOAL describing what "solved" means for that case:
+     'solved' (PLL/ZBLL)  – whole cube solved (centre orientation ignored).
+     'orient' (OLL)       – F2L intact + every U-layer piece shows U on top.
+     'coll'               – F2L intact + LL corners home + LL edges oriented.
+     'cmll'               – both Roux blocks intact + LL corners home.
+   We set up the case (invertSeq(primary)), then try every holding orientation +
+   recognition AUF, and accept if the alg reaches the goal under any finish orientation. */
+const sheetGoal = L => L.goal || (L.kind === 'oll' ? 'orient' : 'solved');
+const _ccOrients = (() => { const ups=['','x2','x',"x'","y x'","y' x'"], spin=['','y','y2',"y'"], o=[];
+  ups.forEach(u => spin.forEach(s => o.push((u + ' ' + s).trim()))); return o; })();
+const _ccType = c => { const n = Math.abs(c.home.x)+Math.abs(c.home.y)+Math.abs(c.home.z); return n===1?'center':n===2?'edge':'corner'; };
+const _ccHome = c => c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z && JSON.stringify(c.ori)===JSON.stringify(I3);
+const _ccPos  = c => c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z;
+const _ccUP = { x:0, y:-1, z:0 };
+function _ccGoal(goal, st) {
+  const cs = st.cubies();
+  const f2l = () => cs.every(c => _ccType(c)==='center' ? _ccPos(c) : (c.home.y===-1 ? true : _ccHome(c)));
+  if (goal === 'orient') return f2l() && cs.filter(c => c.pos.y===-1 && _ccType(c)!=='center').every(c => facing(c,_ccUP)==='U');
+  if (goal === 'coll')   return f2l() && cs.filter(c => c.home.y===-1 && _ccType(c)==='corner').every(_ccHome)
+                                       && cs.filter(c => c.pos.y===-1 && _ccType(c)==='edge').every(c => facing(c,_ccUP)==='U');
+  if (goal === 'cmll')   return cs.filter(c => Math.abs(c.home.x)===1 && (c.home.y===0||c.home.y===1)).every(_ccHome)
+                                       && cs.filter(c => c.home.y===-1 && _ccType(c)==='corner').every(_ccHome);
+  return cs.every(c => _ccType(c)==='center' ? _ccPos(c) : _ccHome(c));   // 'solved' (ignore centre orientation)
+}
+/* returns 'ok' | 'notation' | 'wrongcase' */
+function algSolvesCase(goal, primary, candidate) {
+  let toks; try { toks = tokenize(candidate); } catch (e) { return 'notation'; }
+  if (!toks.length) return 'notation';
+  try { toks.forEach(t => parse(t)); } catch (e) { return 'notation'; }     // unknown move token (incl. wide/slice/rotation all OK)
+  const invP = invertSeq(primary);
+  for (const hold of _ccOrients) { const ht = hold ? tokenize(hold) : null;
+    for (const pre of ['','U','U2',"U'"]) {
+      const st = makeState(); st.reset();            // base = case + hold + recognition AUF + candidate, built once
+      try { st.applyTokens(invP); if (ht) st.applyTokens(ht); if (pre) st.applyTokens(tokenize(pre)); st.applyTokens(toks); }
+      catch (e) { continue; }
+      for (const O of _ccOrients) {                  // accept if solved under any whole-cube finish orientation
+        const ot = O ? tokenize(O) : null;
+        if (ot) st.applyTokens(ot);
+        const reached = _ccGoal(goal, st);
+        if (ot) st.applyTokens(invertSeq(ot));        // integer matrices → exact revert
+        if (reached) return 'ok';
+      }
+    }
+  }
+  return 'wrongcase';
+}
+
 function renderSheet(path) {
-  const L = LESSONS[path], set = ALG_SETS[L.set];
+  const L = LESSONS[path], set = ALG_SETS[L.set], goal = sheetGoal(L);
   sheetIntro.innerHTML = `<h2>${L.title}</h2>` + (L.intro||[]).map(p=>`<p>${p}</p>`).join('')
-    + `<p class="learn-hint"><b>Right-click</b> a case to mark your progress: ⚫ unlearned → 🟡 learning → 🟢 learned (saved on this device).</p>`;
+    + `<p class="learn-hint"><b>Right-click</b> a case to mark progress (⚫→🟡→🟢). Click <b>⋮</b> on a case to browse algorithms or add your own.</p>`;
   sheetGrid.innerHTML = '';
   const fmtAlg = m => (Array.isArray(m) ? m.join(' ') : m).replace(/'/g,'′');
   set.forEach(a => {
-    const variants = [a.moves, ...(a.alts || [])];     // primary algorithm + any alternatives, click ⟳ to cycle
-    let vi = 0;
+    const built = [a.moves, ...(a.alts || [])];        // shipped algorithm + any verified alternatives
+    const inList = alg => built.includes(alg) || getCustomAlgs(L.set, a.name).includes(alg);
+    let current = (() => { const p = getAlgPref(L.set, a.name); return p && inList(p) ? p : a.moves; })();
     const card = document.createElement('button'); card.className = 'case-card learn-' + getLearn(L.set, a.name);
     card.innerHTML = `<span class="learn-dot"></span>
       <div class="case-dia">${diagramFor(L.kind, invertSeq(a.moves))}</div>
       <div class="case-name">${a.name}</div>
-      <div class="case-alg"></div>`
-      + (variants.length>1 ? `<span class="case-altbtn" title="Show another algorithm for this case">⟳ <span class="altn"></span></span>` : '')
+      <div class="case-alg"></div>
+      <span class="case-menubtn" title="Choose an algorithm or add your own">⋮</span>`
       + (a.alt ? `<div class="case-alt">${a.alt.replace(/'/g,'′')}</div>` : '');
-    const algEl = card.querySelector('.case-alg'), altnEl = card.querySelector('.altn');
-    const showVar = () => { algEl.textContent = fmtAlg(variants[vi]); if (altnEl) altnEl.textContent = `${vi+1}/${variants.length}`; };
-    showVar();
+    const algEl = card.querySelector('.case-alg');
+    const showAlg = () => { algEl.textContent = fmtAlg(current); };
+    showAlg();
     const selectCard = () => { sheetGrid.querySelectorAll('.case-card').forEach(c=>c.classList.remove('sel')); card.classList.add('sel'); };
-    card.onclick = () => { selectCard(); sheetPlayer.arm(variants[vi]); sheetPlayer.play(); };
-    const altBtn = card.querySelector('.case-altbtn');
-    if (altBtn) altBtn.onclick = e => { e.stopPropagation(); vi = (vi+1) % variants.length; showVar(); selectCard(); sheetPlayer.arm(variants[vi]); sheetPlayer.play(); };
+    card.onclick = () => { selectCard(); sheetPlayer.arm(current); sheetPlayer.play(); };
+    card.querySelector('.case-menubtn').onclick = e => {
+      e.stopPropagation();
+      openAlgMenu(card.querySelector('.case-menubtn'), {
+        goal, set: L.set, name: a.name, primary: a.moves, built, getCurrent: () => current,
+        onChoose: alg => { current = alg; setAlgPref(L.set, a.name, alg === a.moves ? null : alg); showAlg(); selectCard(); sheetPlayer.arm(alg); sheetPlayer.play(); },
+      });
+    };
     card.addEventListener('contextmenu', e => { e.preventDefault(); const s = cycleLearn(L.set, a.name);
       card.classList.remove('learn-0','learn-1','learn-2'); card.classList.add('learn-' + s); });
     sheetGrid.appendChild(card);
   });
-  if (set[0]) sheetPlayer.arm(set[0].moves);
+  if (set[0]) { const p = getAlgPref(L.set, set[0].name); sheetPlayer.arm(p && [set[0].moves, ...(set[0].alts||[]), ...getCustomAlgs(L.set, set[0].name)].includes(p) ? p : set[0].moves); }
+}
+
+/* ---- ⋮ algorithm menu: browse every algorithm for a case (JPerm-style), pick a preferred
+   one, or type your own — the simulator verifies it solves the case before saving. ---- */
+let _amEl = null, _amClose = null;
+function closeAlgMenu() { if (_amEl) { _amEl.remove(); _amEl = null; } if (_amClose) { document.removeEventListener('pointerdown', _amClose); _amClose = null; } }
+function openAlgMenu(anchor, cfg) {
+  closeAlgMenu();
+  const fmt = m => (Array.isArray(m) ? m.join(' ') : m).replace(/'/g, '′');
+  const el = document.createElement('div'); el.className = 'algmenu';
+  el.innerHTML = `<div class="algmenu-head">${cfg.name} — choose an algorithm</div>
+    <div class="algmenu-list"></div>
+    <div class="algmenu-add">
+      <input class="algmenu-in" placeholder="Add your own (e.g. R U R′ U′)…" spellcheck="false" autocapitalize="off" autocomplete="off">
+      <button class="algmenu-addbtn" type="button">Add</button>
+    </div>
+    <div class="algmenu-msg"></div>`;
+  document.body.appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(r.left - 20, window.innerWidth - el.offsetWidth - 12)) + 'px';
+  el.style.top  = (r.bottom + 6 + window.scrollY) + 'px';
+  const listEl = el.querySelector('.algmenu-list'), inEl = el.querySelector('.algmenu-in'), msgEl = el.querySelector('.algmenu-msg');
+  function renderList() {
+    listEl.innerHTML = '';
+    const rows = [...cfg.built.map((m, i) => ({ alg: m, custom: false, def: i === 0 })),
+                  ...getCustomAlgs(cfg.set, cfg.name).map(m => ({ alg: m, custom: true }))];
+    rows.forEach(({ alg, custom, def }) => {
+      const row = document.createElement('div'); row.className = 'algmenu-row' + (alg === cfg.getCurrent() ? ' active' : '');
+      row.innerHTML = `<span class="algmenu-alg">${fmt(alg)}</span>`
+        + (custom ? `<span class="algmenu-tag you">yours</span><button class="algmenu-del" title="Remove this algorithm">✕</button>`
+                  : (def ? `<span class="algmenu-tag">default</span>` : ''));
+      row.querySelector('.algmenu-alg').onclick = () => { cfg.onChoose(alg); renderList(); };
+      const del = row.querySelector('.algmenu-del');
+      if (del) del.onclick = ev => { ev.stopPropagation(); removeCustomAlg(cfg.set, cfg.name, alg); if (cfg.getCurrent() === alg) cfg.onChoose(cfg.primary); renderList(); };
+      listEl.appendChild(row);
+    });
+  }
+  renderList();
+  const submit = () => {
+    const norm = inEl.value.trim().replace(/[′’]/g, "'");        // accept the pretty prime ′
+    if (!norm) return;
+    const res = algSolvesCase(cfg.goal, cfg.primary, norm);
+    if (res === 'ok') {
+      addCustomAlg(cfg.set, cfg.name, norm); inEl.value = '';
+      msgEl.textContent = '✓ Added — the simulator confirmed it solves this case.'; msgEl.className = 'algmenu-msg ok';
+      cfg.onChoose(norm); renderList();
+    } else if (res === 'notation') {
+      msgEl.textContent = 'Unrecognized notation — use face moves like R U R′ U′ (no wide moves).'; msgEl.className = 'algmenu-msg err';
+    } else {
+      msgEl.textContent = "That doesn't solve this case. Double-check your algorithm."; msgEl.className = 'algmenu-msg err';
+    }
+  };
+  el.querySelector('.algmenu-addbtn').onclick = submit;
+  inEl.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } };
+  inEl.focus();
+  _amEl = el;
+  _amClose = e => { if (!el.contains(e.target) && e.target !== anchor) closeAlgMenu(); };
+  setTimeout(() => document.addEventListener('pointerdown', _amClose), 0);
 }
 
 /* ================================================================

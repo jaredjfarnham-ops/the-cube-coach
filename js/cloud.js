@@ -39,6 +39,39 @@
   window.cloudSyncSet = cloudSyncSet;
   function setSyncStatus(t, err) { const el = document.getElementById('authSync'); if (el) { el.textContent = t; el.classList.toggle('err', !!err); } }
 
+  /* mirror the account's custom algorithms + preferred-alg choices to the `user_algs` table.
+     Replace-all (the data is tiny). Degrades to local-only if the table is missing / offline. */
+  function algRows() {
+    const d = Profiles.data(), rows = [];
+    const cu = d.custom || {};
+    for (const k of Object.keys(cu)) { const i = k.indexOf('/'), set_id = k.slice(0, i), case_name = k.slice(i + 1);
+      (cu[k] || []).forEach(alg => rows.push({ user_id: uid, set_id, case_name, alg, role: 'custom' })); }
+    const pf = d.algpref || {};
+    for (const k of Object.keys(pf)) { const i = k.indexOf('/'); rows.push({ user_id: uid, set_id: k.slice(0, i), case_name: k.slice(i + 1), alg: pf[k], role: 'pref' }); }
+    return rows;
+  }
+  async function cloudSaveAlgs() {
+    if (!signedIn() || Profiles.currentId() !== accountPid) return;
+    try {
+      const del = await sb.from('user_algs').delete().eq('user_id', uid); if (del.error) throw del.error;
+      const rows = algRows();
+      if (rows.length) { const up = await sb.from('user_algs').insert(rows); if (up.error) throw up.error; }
+      setSyncStatus('✓ Synced', false);
+    } catch (e) { console.warn('[cloud] custom-alg sync failed (kept locally):', e.message || e); }
+  }
+  window.cloudSaveAlgs = cloudSaveAlgs;
+  async function cloudPullAlgs() {
+    try {
+      const r = await sb.from('user_algs').select('set_id,case_name,alg,role'); if (r.error) throw r.error;
+      const d = Profiles.data(); d.custom = d.custom || {}; d.algpref = d.algpref || {};
+      r.data.forEach(row => { const k = row.set_id + '/' + row.case_name;
+        if (row.role === 'pref') d.algpref[k] = row.alg;
+        else { (d.custom[k] = d.custom[k] || []); if (!d.custom[k].includes(row.alg)) d.custom[k].push(row.alg); } });
+      Profiles.save();
+    } catch (e) { console.warn('[cloud] custom-alg pull skipped (table missing?):', e.message || e); }
+    await cloudSaveAlgs();   // push any local-only additions back up
+  }
+
   /* pull every cloud solve into the account profile, merge (cloud wins on identical timestamp; local-only kept),
      then push anything local-only back up so both sides converge to the union. */
   async function cloudPullMerge() {
@@ -56,6 +89,7 @@
     });
     Profiles.save();
     for (const setId of Object.keys(d.times)) await cloudSyncSet(setId);
+    await cloudPullAlgs();
   }
 
   /* find or create the local profile that mirrors this account, and switch to it */
