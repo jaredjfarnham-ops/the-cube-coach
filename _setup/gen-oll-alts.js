@@ -94,9 +94,9 @@ let js = `/* OLL alternative algorithms + One-Handed (OH) OLL & PLL sheets — e
   if (ALG_SETS.oll) ALG_SETS.oll.forEach(c => { if (OLL_ALTS[c.name]) c.alts = OLL_ALTS[c.name]; });
   ALG_SETS.ollOH = ${JSON.stringify(ollOH)};
   ALG_SETS.pllOH = ${JSON.stringify(pllOH)};
-  LESSONS['3x3/cfop/oll-oh-sheet'] = { type:'sheet', kind:'oll', goal:'orient', set:'ollOH',
+  LESSONS['oh/oh/oll-oh-sheet'] = { type:'sheet', kind:'oll', goal:'orient', set:'ollOH',
     title:'OLL — One-Handed', intro:['One-handed-friendly OLL algorithms (chosen to avoid regrips), with the two-handed and other variants available from the ⋮ menu on each case.'] };
-  LESSONS['3x3/cfop/pll-oh-sheet'] = { type:'sheet', kind:'pll', goal:'solved', set:'pllOH',
+  LESSONS['oh/oh/pll-oh-sheet'] = { type:'sheet', kind:'pll', goal:'solved', set:'pllOH',
     title:'PLL — One-Handed', intro:['One-handed-friendly PLL algorithms. Use the ⋮ menu on a case to see the two-handed alternatives or add your own.'] };
 })();
 `;

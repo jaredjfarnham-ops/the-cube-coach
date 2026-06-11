@@ -26,8 +26,6 @@ const PUZZLES = [
           { id:'ocll-sheet', name:'OCLL — Orient LL Corners' },
           { id:'pll-sheet', name:'PLL — Algorithm Sheet' },
           { id:'coll-sheet', name:'COLL — Algorithm Sheet' },
-          { id:'oll-oh-sheet', name:'OLL — One-Handed' },
-          { id:'pll-oh-sheet', name:'PLL — One-Handed' },
         ]},
       { id:'roux', name:'Roux', blurb:'Block-building, low move count, few algorithms.',
         items:[ {id:'fb',name:'First Block'}, {id:'sb',name:'Second Block'}, {id:'cmll',name:'CMLL'}, {id:'cmll-sheet',name:'CMLL — Algorithm Sheet'}, {id:'cmll-full-sheet',name:'CMLL — Full Sheet'}, {id:'lse',name:'LSE — Last Six Edges'} ]},
@@ -41,7 +39,7 @@ const PUZZLES = [
     ]},
   { id:'oh', name:'3×3 One-Handed', art:'hand', methods:[
       { id:'oh', name:'One-Handed Technique', blurb:'CFOP optimised for one hand: regrip-light fingertricks, OH-friendly algorithms, and which moves to avoid.',
-        items:[ {id:'grips',name:'Grips & Fingertricks'}, {id:'algs',name:'OH-friendly Algs'}, {id:'practice',name:'Drills'} ]},
+        items:[ {id:'grips',name:'Grips & Fingertricks'}, {id:'algs',name:'OH-friendly Algs'}, {id:'oll-oh-sheet',name:'OLL — One-Handed'}, {id:'pll-oh-sheet',name:'PLL — One-Handed'}, {id:'practice',name:'Drills'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with standard 3×3 scrambles — solve one-handed; times saved to your profile.', items:[ {id:'solve',name:'One-Handed Timer'} ]},
     ]},
   { id:'2x2', name:'2×2  (Pocket Cube)', art:'cube2', methods:[
