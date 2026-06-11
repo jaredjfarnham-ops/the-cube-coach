@@ -56,6 +56,12 @@ const bundle = 'const LESSONS={};' +
       else if(b==='L'||b==='B') s+=4;                       // hard one-handed moves
       else if(b==='F') s+=3;                                // forces a regrip, but a touch easier than L/B
       else if(b==='x'||b==='z') s+=1.5; }                   // R, U, D, y = 0 (D is fine one-handed)
+    // a wide move next to the opposite single turn on the same face (r R') is really a slice — bump to slice tier
+    const fc=t=>{ const m=t.match(/^\\d*([RLUDFBrludfb])/); return m?m[1].toUpperCase():null; };
+    const wd=t=>/w/.test(t) || /^\\d*[rludfb]/.test(t);
+    const am=t=>{ let q=/2/.test(t)?2:1; if(/'/.test(t))q=(4-q)%4; return q; };
+    for(let i=0;i+1<toks.length;i++){ const a=toks[i], b=toks[i+1];
+      if(fc(a) && fc(a)===fc(b) && (wd(a)!==wd(b)) && ((am(a)===1&&am(b)===3)||(am(a)===3&&am(b)===1))) s+=6; }
     return s + toks.length*0.1; }                           // tie-break: shorter
   // pick the most OH-friendly alg as primary, rest as alts (OH order)
   function pickOH(c, goal, pool){ const seen=new Set(), verified=[];
