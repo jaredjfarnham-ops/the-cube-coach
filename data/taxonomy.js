@@ -26,6 +26,8 @@ const PUZZLES = [
           { id:'ocll-sheet', name:'OCLL — Orient LL Corners' },
           { id:'pll-sheet', name:'PLL — Algorithm Sheet' },
           { id:'coll-sheet', name:'COLL — Algorithm Sheet' },
+          { id:'oll-oh-sheet', name:'OLL — One-Handed' },
+          { id:'pll-oh-sheet', name:'PLL — One-Handed' },
         ]},
       { id:'roux', name:'Roux', blurb:'Block-building, low move count, few algorithms.',
         items:[ {id:'fb',name:'First Block'}, {id:'sb',name:'Second Block'}, {id:'cmll',name:'CMLL'}, {id:'cmll-sheet',name:'CMLL — Algorithm Sheet'}, {id:'cmll-full-sheet',name:'CMLL — Full Sheet'}, {id:'lse',name:'LSE — Last Six Edges'} ]},
