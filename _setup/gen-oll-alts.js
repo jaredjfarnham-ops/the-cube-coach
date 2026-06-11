@@ -50,12 +50,13 @@ const bundle = 'const LESSONS={};' +
     return toks.join(' '); }
   // one-handed friendliness penalty (lower = better): R/U/y are free, slices & wide & L/D/B are costly
   function ohScore(alg){ let s=0; const toks=tokenize(alg);
-    for(const t of toks){ const b=t.replace(/['2]/g,'');
+    for(let i=0;i<toks.length;i++){ const b=toks[i].replace(/['2]/g,'');
       if(/^[MES]$/.test(b)) s+=10;                          // M/E/S slices — need two hands
       else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=4;    // wide (esp. r) forces a regrip — tier with L/B
       else if(b==='L'||b==='B') s+=4;                       // hard one-handed moves
       else if(b==='F') s+=3;                                // forces a regrip, but a touch easier than L/B
-      else if(b==='x') s+=1.5; }                            // R, U, D, y, z = 0 (y/z rolls are fine one-handed; x flips aren't)
+      else if(b==='x') s+=1.5;                              // x flips — light penalty
+      else if(b==='y' && i>0) s+=1.5; }                     // mid-alg y is a regrip (light); a LEADING y is just a start angle (≈ a U adjustment) → free. R/U/D/z = 0
     // a wide move next to the opposite single turn on the same face (r R') is really a slice — bump to slice tier
     const fc=t=>{ const m=t.match(/^\\d*([RLUDFBrludfb])/); return m?m[1].toUpperCase():null; };
     const wd=t=>/w/.test(t) || /^\\d*[rludfb]/.test(t);
