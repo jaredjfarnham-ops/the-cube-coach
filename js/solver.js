@@ -41,6 +41,15 @@
   let state = SOLVED.split('');                 // 54 letters
   let paintColor = 'U';
 
+  // Displayed colour per face. The SOLVER is unaffected — it works on face letters / the relative
+  // arrangement, and white-up/green-front is the reference for every scheme — so changing this only
+  // changes what the user sees, letting them match their physical cube.
+  const SCHEMES = {
+    western:  { U:'#f7f7f7', R:'#d4202a', F:'#00a651', D:'#ffd500', L:'#ff7416', B:'#0050d8' },
+    japanese: { U:'#f7f7f7', R:'#d4202a', F:'#00a651', D:'#0050d8', L:'#ff7416', B:'#ffd500' },  // blue↔yellow vs Western
+  };
+  let scheme = { ...SCHEMES.western };   // mutable: a preset, or per-centre custom colours
+
   const palette = $('solverPalette'), net = $('solverNet'), paintOut = $('solverPaintOut');
   // net layout: a 4-col × 3-row grid of faces; only U / L F R B / D are filled.
   const NETSLOTS = [ null,'U',null,null,  'L','F','R','B',  null,'D',null,null ];
@@ -48,7 +57,7 @@
 
   function buildPalette() {
     palette.innerHTML = FACES.map(f =>
-      `<button class="solver-sw c-${f}${f === paintColor ? ' sel' : ''}" data-f="${f}" title="${f} face"></button>`).join('');
+      `<button class="solver-sw${f === paintColor ? ' sel' : ''}" data-f="${f}" title="${f} face" style="background:${scheme[f]}"></button>`).join('');
     palette.querySelectorAll('.solver-sw').forEach(b => b.onclick = () => {
       paintColor = b.dataset.f; palette.querySelectorAll('.solver-sw').forEach(o => o.classList.toggle('sel', o === b));
     });
@@ -61,9 +70,11 @@
       cell.className = 'solver-face';
       for (let i = 0; i < 9; i++) {
         const s = document.createElement('button'); const idx = faceStart(f) + i;
-        s.className = 'solver-st c-' + state[idx];
-        if (i === 4) { s.classList.add('center'); s.disabled = true; s.title = f + ' centre'; }  // centres fixed
-        else s.onclick = () => { state[idx] = paintColor; s.className = 'solver-st c-' + paintColor; };
+        s.className = 'solver-st'; s.style.background = scheme[state[idx]];
+        if (i === 4) {           // centre: defines the face's colour — click to recolour it to match your cube
+          s.classList.add('center'); s.title = f + ' centre — click to set this colour';
+          s.onclick = () => { if (typeof openColorPicker === 'function') openColorPicker(s, scheme[f], hex => { scheme[f] = hex; buildPalette(); buildNet(); }); };
+        } else s.onclick = () => { state[idx] = paintColor; s.style.background = scheme[paintColor]; };
         cell.appendChild(s);
       }
       net.appendChild(cell);
@@ -119,6 +130,10 @@
         : `<div class="solver-sol-label">It's already solved.</div>`;
     } catch (e) { paintOut.innerHTML = `<span class="err">Couldn't solve that — is the colouring valid?</span>`; }
   };
+
+  function setScheme(name) { scheme = { ...SCHEMES[name] }; buildPalette(); buildNet(); }
+  if ($('solverSchemeW')) $('solverSchemeW').onclick = () => setScheme('western');
+  if ($('solverSchemeJ')) $('solverSchemeJ').onclick = () => setScheme('japanese');
 
   buildPalette(); buildNet();
 })();
