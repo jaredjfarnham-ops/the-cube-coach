@@ -630,7 +630,7 @@ function renderLesson(path) {
       const wrap=document.createElement('div'); wrap.className='alg-list';
       sec.algs.forEach(a => {
         const chip=document.createElement('button'); chip.className='alg-chip';
-        chip.innerHTML = `<b>${a.name}</b><span class="mono">${mvStr(a).replace(/'/g,'′')}</span>`;
+        chip.innerHTML = `<b>${a.name}</b><span class="mono">${fmtAlg(a.moves)}</span>`;
         chip.onclick = () => { allChips.forEach(c=>c.classList.remove('sel')); chip.classList.add('sel'); curLessonPlayer.arm(a.moves); algoNote.textContent=a.note||''; };
         wrap.appendChild(chip); allChips.push(chip); if (!first){ first=a; firstChip=chip; }
       });
@@ -696,12 +696,34 @@ function algSolvesCase(goal, primary, candidate) {
   return 'wrongcase';
 }
 
+/* wrap recognised fingertrick "triggers" (sexy move, sledgehammer, insert triggers) in parentheses,
+   the way algs are conventionally written. Purely cosmetic — the stored move list is unchanged. */
+const TRIGGERS = [
+  "R U R' U'", "R' U' R U", "R U' R' U", "R' U R U'",            // sexy + variants
+  "L' U' L U", "L U L' U'", "L U' L' U", "L' U L U'",
+  "U R U' R'", "U' R' U R", "U R' U' R", "U' R U R'", "U L' U' L", "U' L U L'",
+  "R' F R F'", "F R' F' R", "R F R' F'", "F R F' R'",            // sledgehammer + variants
+  "L F' L' F", "F' L F L'", "L' F L F'", "F L' F' L",
+  "R U R'", "R U' R'", "R U2 R'", "R' U R", "R' U' R", "R' U2 R", // 3-move insert triggers
+  "L' U L", "L' U' L", "L' U2 L", "L U L'", "L U' L'", "L U2 L'",
+].map(s => s.split(' '));
+TRIGGERS.sort((a, b) => b.length - a.length);                    // greedy match prefers the longest trigger
+function groupTriggers(alg) {
+  const toks = (Array.isArray(alg) ? alg.slice() : String(alg).trim().split(/\s+/)).filter(Boolean);
+  const out = []; let i = 0;
+  while (i < toks.length) {
+    let m = null;
+    for (const t of TRIGGERS) { if (i + t.length <= toks.length && t.every((x, k) => x === toks[i+k])) { m = t; break; } }
+    if (m) { out.push('(' + m.join(' ') + ')'); i += m.length; } else { out.push(toks[i++]); }
+  }
+  return out.join(' ');
+}
+const fmtAlg = m => groupTriggers(m).replace(/'/g, '′');
 function renderSheet(path) {
   const L = LESSONS[path], set = ALG_SETS[L.set], goal = sheetGoal(L);
   sheetIntro.innerHTML = `<h2>${L.title}</h2>` + (L.intro||[]).map(p=>`<p>${p}</p>`).join('')
     + `<p class="learn-hint"><b>Right-click</b> a case to mark progress (⚫→🟡→🟢). Click <b>⋮</b> on a case to browse algorithms or add your own.</p>`;
   sheetGrid.innerHTML = '';
-  const fmtAlg = m => (Array.isArray(m) ? m.join(' ') : m).replace(/'/g,'′');
   set.forEach(a => {
     const built = [a.moves, ...(a.alts || [])];        // shipped algorithm + any verified alternatives
     const inList = alg => built.includes(alg) || getCustomAlgs(L.set, a.name).includes(alg);
@@ -738,7 +760,7 @@ let _amEl = null, _amClose = null;
 function closeAlgMenu() { if (_amEl) { _amEl.remove(); _amEl = null; } if (_amClose) { document.removeEventListener('pointerdown', _amClose); _amClose = null; } }
 function openAlgMenu(anchor, cfg) {
   closeAlgMenu();
-  const fmt = m => (Array.isArray(m) ? m.join(' ') : m).replace(/'/g, '′');
+  const fmt = fmtAlg;
   const el = document.createElement('div'); el.className = 'algmenu';
   el.innerHTML = `<div class="algmenu-head">${cfg.name} — choose an algorithm</div>
     <div class="algmenu-list"></div>
@@ -769,7 +791,7 @@ function openAlgMenu(anchor, cfg) {
   }
   renderList();
   const submit = () => {
-    const norm = inEl.value.trim().replace(/[′’]/g, "'");        // accept the pretty prime ′
+    const norm = inEl.value.trim().replace(/[′’]/g, "'").replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();   // accept the pretty prime ′ and grouping parens
     if (!norm) return;
     const res = algSolvesCase(cfg.goal, cfg.primary, norm);
     if (res === 'ok') {
@@ -935,7 +957,7 @@ function retryScramble(scr) {
 }
 function trReveal() {
   if (!trCur) return;
-  trAnswer.innerHTML = `<b>${trCur.name}</b><span class="mono">${trMoves(trCur).replace(/'/g,'′')}</span>`
+  trAnswer.innerHTML = `<b>${trCur.name}</b><span class="mono">${fmtAlg(trMoves(trCur))}</span>`
     + (trCur.alt ? `<span class="mono alt">alt: ${trCur.alt.replace(/'/g,'′')}</span>` : '');
   trAnswer.classList.add('show');
 }
