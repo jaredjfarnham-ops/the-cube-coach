@@ -1030,7 +1030,7 @@ function renderHome() {
    ================================================================ */
 const megabar=document.getElementById('megabar'), megapanel=document.getElementById('megapanel'),
       megawrap=document.getElementById('megawrap'), crumb=document.getElementById('breadcrumb');
-let cur = { p:null, m:null, i:null }, homeMode=true, openPuzzle=null;
+let cur = { p:null, m:null, i:null }, homeMode=true, statsMode=false, openPuzzle=null;
 const getP = id => PUZZLES.find(p=>p.id===id);
 const shortName = n => n.split('(')[0].trim();
 const pathOf = (p,m,i) => `${p}/${m}/${i}`;
@@ -1112,11 +1112,11 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closePanel(); 
 const VIEWS = ['view-home','view-notation','view-lesson','view-sheet','view-trainer','view-placeholder','view-play','view-stats'];
 const show = id => VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
 
-function goHome() { homeMode=true; closePanel(); document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected')); crumb.innerHTML='<b>Home</b>'; renderHome(); show('view-home'); }
-function select(pId,mId,iId) { homeMode=false; cur={p:pId,m:mId,i:iId}; render(); closePanel(); }
+function goHome() { homeMode=true; statsMode=false; closePanel(); document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected')); crumb.innerHTML='<b>Home</b>'; renderHome(); show('view-home'); }
+function select(pId,mId,iId) { homeMode=false; statsMode=false; cur={p:pId,m:mId,i:iId}; render(); closePanel(); }
 
 function render() {
-  if (!statsView.classList.contains('hidden')) { renderStatsView(); return; }   // keep Statistics live across profile switches
+  if (statsMode) { renderStatsView(); return; }   // keep Statistics live across profile switches (explicit nav clears statsMode)
   if (homeMode) { show('view-home'); return; }
   const p=getP(cur.p), m=p.methods.find(x=>x.id===cur.m);
   const i=(m.items&&m.items.length)? m.items.find(x=>x.id===cur.i) : null;
@@ -1282,14 +1282,14 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
 playSelect(PLAY_PUZZLES.find(p => p.id==='3x3'));   // initialise
 
 function openPlay() {
-  homeMode=false; closePanel();
+  homeMode=false; statsMode=false; closePanel();
   document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected'));
   document.querySelector('.puzzle-tab[data-cat="play"]').classList.add('selected');
   crumb.innerHTML = '<b>Virtual Cube</b>';
   updateStatus(); show('view-play');
 }
 function openStats() {
-  homeMode=false; closePanel();
+  homeMode=false; statsMode=true; closePanel();
   document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected'));
   document.querySelector('.puzzle-tab[data-cat="stats"]').classList.add('selected');
   crumb.innerHTML = '<b>Statistics</b>';
