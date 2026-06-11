@@ -83,9 +83,7 @@ const bundle = 'const LESSONS={};' +
       if (!chosen) continue;
       const simp = simplify(chosen);              // cancel redundant AUF / merges
       if (!simp) continue;
-      // the display cube only animates faces R/U/L/F/B/D, slices M/E/S and rotations x/y/z —
-      // drop alts using lowercase wide moves (l, r, u, f, b, d, *w), which it can't render
-      if (tokenize(simp).some(t => /^[lrufbd]/.test(t) || /w/.test(t))) continue;
+      // (the display cube renders wide moves l/r/u/… and slices M/E/S fine, so they are kept)
       let stillOk; try { stillOk = orientKeys(simp).has(target); } catch (e) { continue; }
       if (!stillOk) continue;                     // simplification must preserve the case
       const tk = tokenize(simp).join(' ');

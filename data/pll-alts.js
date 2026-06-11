@@ -17,13 +17,16 @@
     "R U R' U R' U' R' U R U' R' U' R2 U R"
   ],
   "Aa": [
-    "x R' U R' D2 R U' R' D2 R2 x'"
+    "x R' U R' D2 R U' R' D2 R2 x'",
+    "l' U R' D2 R U' R' D2 R2 x'"
   ],
   "Ab": [
-    "x R2 D2 R U R' D2 R U' R x'"
+    "x R2 D2 R U R' D2 R U' R x'",
+    "l' R' D2 R U R' D2 R U' R x'"
   ],
   "E": [
-    "x' R U' R' D R U R' D' R U R' D R U' R' D' x"
+    "x' R U' R' D R U R' D' R U R' D R U' R' D' x",
+    "l U' R' D R U R' D' R U R' D R U' R' D' x"
   ],
   "Ja": [
     "U' R' U L' U2 R U' R' U2 R L",
@@ -31,6 +34,19 @@
   ],
   "Jb": [
     "R U2 R' U' R U2 L' U R' U' L"
+  ],
+  "Ga": [
+    "U' R2 u R' U R' U' R u' R2 y' R' U R"
+  ],
+  "Gb": [
+    "U R' U' R y R2 u R' U R U' R u' R2",
+    "U F' U' F R2 u R' U R U' R u' R2"
+  ],
+  "Gc": [
+    "U R2 u' R U' R U R' u R2 y R U' R'"
+  ],
+  "Gd": [
+    "U' R U R' y' R2 u' R U' R' U R' u R2"
   ],
   "V": [
     "R' U2 R U2 L U' R' U L' U L U' R U L'"
