@@ -624,7 +624,7 @@ function renderLesson(path) {
    ================================================================ */
 const sheetIntro = document.getElementById('sheetIntro');
 const sheetGrid  = document.getElementById('sheetGrid');
-const diagramFor = (kind, setup) => kind==='pll' ? pllSVG(setup) : ollSVG(setup);   // setup = scramble that produces the case
+const diagramFor = (kind, setup) => kind==='zbll' ? zbllSVG(setup) : kind==='pll' ? pllSVG(setup) : ollSVG(setup);   // setup = scramble that produces the case
 function renderSheet(path) {
   const L = LESSONS[path], set = ALG_SETS[L.set];
   sheetIntro.innerHTML = `<h2>${L.title}</h2>` + (L.intro||[]).map(p=>`<p>${p}</p>`).join('')

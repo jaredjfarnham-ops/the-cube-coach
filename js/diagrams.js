@@ -58,6 +58,29 @@ function ollSVG(setup) {
   return `<svg viewBox="0 0 ${SPAN} ${SPAN}" xmlns="http://www.w3.org/2000/svg" class="case-svg">${body}</svg>`;
 }
 
+/* ZBLL: shows BOTH orientation and permutation — top cells are LL-yellow where oriented and
+   the wrapped side-colour where a corner is twisted; rim tabs show side colours; arrows show
+   the corner+edge permutation. (Edges are pre-oriented in ZBLL, so only corners can be twisted.) */
+function zbllSVG(setup) {
+  const cs = llState(setup).cubies();
+  let body = `<rect x="0" y="0" width="${SPAN}" height="${SPAN}" rx="8" fill="#11142a"/>`;
+  body += `<defs><marker id="ahz" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#e8ecff"/></marker></defs>`;
+  for (let x=-1;x<=1;x++) for (let z=-1;z<=1;z++) { const c=topAt(cs,x,z); const up=facing(c,UP);
+    body += rect(cellX(x), cellY(z), S, S, up==='U' ? LL_FILL : (COLOR_HEX[up]||BARE_FILL)); }
+  for (const {d,on} of SIDES) {
+    const fixed = on==='front'?{z:1}:on==='back'?{z:-1}:on==='right'?{x:1}:{x:-1};
+    for (let i=-1;i<=1;i++) { const x='x' in fixed?fixed.x:i, z='z' in fixed?fixed.z:i, lane=('x' in fixed)?z:x;
+      const c=topAt(cs,x,z); const col=facing(c,d); body += tabRect(on, lane, col ? COLOR_HEX[col] : TAB_OFF); }
+  }
+  for (const c of cs) {
+    if (c.pos.y!==-1) continue;
+    if (c.pos.x===c.home.x && c.pos.z===c.home.z) continue;
+    const x1=ctr(c.pos.x), y1=ctr(c.pos.z), x2=ctr(c.home.x), y2=ctr(c.home.z);
+    body += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#e8ecff" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ahz)"/>`;
+  }
+  return `<svg viewBox="0 0 ${SPAN} ${SPAN}" xmlns="http://www.w3.org/2000/svg" class="case-svg">${body}</svg>`;
+}
+
 /* PLL: top solved-gray, rim tabs show side colors, arrows show the piece permutation. */
 function pllSVG(setup) {
   const cs = llState(setup).cubies();
