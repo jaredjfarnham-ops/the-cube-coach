@@ -79,20 +79,40 @@
   };
 
   let solverReady = false;
+  // Why a state can't be solved (null = solvable). Reads cubejs's piece arrays — cubejs itself
+  // does NOT validate, and handing it an impossible state sends solve() into an endless search.
+  function solvableReason(cube) {
+    const { cp, co, ep, eo } = cube;
+    const isPerm = (a, n) => { const seen = new Array(n).fill(false);
+      for (const v of a) { if (v == null || v < 0 || v >= n || seen[v]) return false; seen[v] = true; } return seen.every(Boolean); };
+    if (!isPerm(cp, 8) || !isPerm(ep, 12)) return 'a piece is duplicated or missing.';
+    if (co.reduce((a, b) => a + b, 0) % 3 !== 0) return 'a corner is twisted — that can’t happen on a real cube.';
+    if (eo.reduce((a, b) => a + b, 0) % 2 !== 0) return 'an edge is flipped — that can’t happen on a real cube.';
+    const par = p => { let n = 0; for (let i = 0; i < p.length; i++) for (let j = i + 1; j < p.length; j++) if (p[i] > p[j]) n++; return n & 1; };
+    if (par(cp) !== par(ep)) return 'two pieces are swapped — that can’t happen on a real cube.';
+    return null;
+  }
   if ($('solverPaintBtn')) $('solverPaintBtn').onclick = async () => {
     const str = state.join('');
-    // validate: each face letter exactly 9 times
+    // 1. each colour exactly 9 times
     const counts = {}; for (const c of str) counts[c] = (counts[c] || 0) + 1;
     const bad = FACES.find(f => counts[f] !== 9);
     if (bad) { paintOut.innerHTML = `<span class="err">Each colour must appear 9 times — ${bad} appears ${counts[bad] || 0}.</span>`; return; }
     if (typeof Cube === 'undefined') { paintOut.innerHTML = `<span class="err">Solver engine didn't load.</span>`; return; }
+    // 2. validate BEFORE solving (else an impossible state makes solve() search forever):
+    //    (a) the stickers must form real pieces — re-encoding the decoded cube must reproduce them
+    //        (catches swapped stickers / impossible colour combos cubejs silently drops), and
+    //    (b) the piece arrangement must be reachable (twist / flip / swap parity).
+    const cube = Cube.fromString(str);
+    if (cube.asString() !== str) { paintOut.innerHTML = `<span class="err">Those stickers don't form a real cube — a corner or edge has colours that can't exist (e.g. two stickers swapped). Check your colouring.</span>`; return; }
+    const reason = solvableReason(cube);
+    if (reason) { paintOut.innerHTML = `<span class="err">That cube can't be solved — ${reason}</span>`; return; }
     paintOut.innerHTML = `<span class="muted">Solving…</span>`;
     await new Promise(r => setTimeout(r, 20));                 // let the message paint
     try {
       if (!solverReady) { Cube.initSolver(); solverReady = true; }   // ~0.6s, once
       const sol = Cube.fromString(str).solve();
-      // verify the solution actually solves it (cubejs doesn't validate impossible states)
-      const ok = sol != null && Cube.fromString(str).move(sol).asString() === SOLVED;
+      const ok = sol != null && Cube.fromString(str).move(sol).asString() === SOLVED;   // belt-and-suspenders
       if (!ok) { paintOut.innerHTML = `<span class="err">That cube state isn't solvable — check for a flipped edge or twisted corner.</span>`; return; }
       paintOut.innerHTML = sol.trim()
         ? `<div class="solver-sol-label">Solution (${sol.trim().split(/\s+/).length} moves):</div><div class="solver-sol">${pretty(sol)}</div>`
