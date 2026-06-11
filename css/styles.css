@@ -267,7 +267,13 @@
   .trainer-answer .mono { display: block; font-family: 'Consolas', monospace; font-size: 13px; color: var(--accent-2); margin-top: 3px; }
   .trainer-answer .mono.alt { font-size: 11.5px; color: var(--muted); }
   .trainer-panel { display: flex; flex-direction: column; gap: 12px; }
-  .trainer-timer { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; line-height: 1; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .trainer-timer { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; line-height: 1;
+    cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+    display: flex; align-items: center; justify-content: center; width: 100%; min-height: 104px;
+    border-radius: 14px; background: rgba(127,140,180,.07); transition: background .12s; }
+  .trainer-timer:hover { background: rgba(127,140,180,.11); }
+  .trainer-timer:active { background: rgba(127,140,180,.17); }
+  .trainer-view.count-mode .trainer-timer { min-height: 0; background: none; }   /* FMC has no stopwatch — no tap zone */
   .trainer-filters { display: flex; flex-direction: column; gap: 8px; }
   .filt-sel { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
   .filt-sel select { flex: 1; background: var(--panel); color: var(--text); border: 1px solid #313a6b; border-radius: 8px; padding: 6px 9px; font-size: 12.5px; cursor: pointer; }
