@@ -25,7 +25,7 @@
     const local = getSolves(setId);
     try {
       if (local.length) {
-        const rows = local.map(s => ({ user_id: uid, set_id: setId, ms: s.ms, penalty: penToText(s.p), t: s.t }));
+        const rows = local.map(s => ({ user_id: uid, set_id: setId, ms: Math.round(s.ms), penalty: penToText(s.p), t: s.t }));   // ms column is integer; raw times are float
         const up = await sb.from('solves').upsert(rows, { onConflict: 'user_id,set_id,t' });
         if (up.error) throw up.error;
       }

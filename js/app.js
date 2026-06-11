@@ -154,7 +154,7 @@ function cycleLearn(set, name) {
 }
 /* solve times (per current profile, per set). Each solve = {ms, p, t}: raw ms, penalty (0 | 2 | 'dnf'), timestamp. */
 const getSolves = setId => (Profiles.data().times[setId] = Profiles.data().times[setId] || []);
-function addSolve(setId, ms, p) { getSolves(setId).push({ ms, p: p || 0, t: Date.now() }); Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
+function addSolve(setId, ms, p) { getSolves(setId).push({ ms: Math.round(ms), p: p || 0, t: Date.now() }); Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 function clearSolves(setId) { Profiles.data().times[setId] = []; Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 
 /* ---------- User menu UI ---------- */
