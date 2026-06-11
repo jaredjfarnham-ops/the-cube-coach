@@ -52,9 +52,10 @@ const bundle = 'const LESSONS={};' +
   function ohScore(alg){ let s=0; const toks=tokenize(alg);
     for(const t of toks){ const b=t.replace(/['2]/g,'');
       if(/^[MES]$/.test(b)) s+=10;                          // M/E/S slices — need two hands
-      else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=4;    // wide (esp. r) forces a regrip — same tier as F/L/D
-      else if(b==='L'||b==='D'||b==='B'||b==='F') s+=4;     // single moves that force a regrip
-      else if(b==='x'||b==='z') s+=1.5; }                   // R, U, y = 0
+      else if(/w/.test(b) || /^[lrufbd]$/.test(b)) s+=4;    // wide (esp. r) forces a regrip — tier with L/B
+      else if(b==='L'||b==='B') s+=4;                       // hard one-handed moves
+      else if(b==='F') s+=3;                                // forces a regrip, but a touch easier than L/B
+      else if(b==='x'||b==='z') s+=1.5; }                   // R, U, D, y = 0 (D is fine one-handed)
     return s + toks.length*0.1; }                           // tie-break: shorter
   // pick the most OH-friendly alg as primary, rest as alts (OH order)
   function pickOH(c, goal, pool){ const seen=new Set(), verified=[];
