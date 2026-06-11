@@ -465,8 +465,8 @@ function makePyraminx() {
   const FC = FV.map(([a,b,c]) => GV.map(tri => tri.map(([wa,wb,wc]) =>
     [VT[a][0]*wa+VT[b][0]*wb+VT[c][0]*wc, VT[a][1]*wa+VT[b][1]*wb+VT[c][1]*wc, VT[a][2]*wa+VT[b][2]*wb+VT[c][2]*wc])));
   const FN = FV.map(([a,b,c]) => [ (VT[a][0]+VT[b][0]+VT[c][0])/3, (VT[a][1]+VT[b][1]+VT[c][1])/3, (VT[a][2]+VT[b][2]+VT[c][2])/3 ]);
-  let rx=0, ry=0;             // orbit deltas FROM the resting view R0 (Yellow flat on the bottom, Green centred in front)
-  const DEF=[0,0];
+  let rx=-12, ry=40;          // 3/4 of the resting view R0: Yellow base down, apex up, Green front + a side face shown
+  const DEF=[-12,40];
   /* A 2-axis (pitch/yaw, no roll) camera can't level a tetra resting on a face, so bake the resting
      orientation into R0: it maps yellow's normal to straight-down and green's normal to centred-toward-viewer.
      The live view is rmat(rx,ry)·R0, so orbiting still works and recentre returns here. */
