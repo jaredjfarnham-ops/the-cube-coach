@@ -283,14 +283,15 @@
   (function () {
     var t = '?t=' + Date.now();
     var files = [
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',   // cloud SDK (external; cloud.js degrades gracefully if it fails)
       'data/notation.js','data/lessons.js','data/lessons-extra.js','data/algs.js','data/cfop-sets.js',
       'data/algs-sheets.js',
       'data/probabilities.js','data/nxn.js','data/events.js','data/methods.js','data/taxonomy.js',
-      'js/engine.js','js/diagrams.js','js/puzzles.js','js/app.js'
+      'js/engine.js','js/diagrams.js','js/puzzles.js','js/app.js','js/cloud.js'
     ];
     files.forEach(function (src) {
       var s = document.createElement('script');
-      s.src = src + t; s.async = false;   // async=false preserves execution order
+      s.src = src + (src.indexOf('http') === 0 ? '' : t); s.async = false;   // async=false preserves execution order
       document.head.appendChild(s);
     });
   })();

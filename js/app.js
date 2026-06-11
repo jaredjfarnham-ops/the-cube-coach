@@ -154,8 +154,8 @@ function cycleLearn(set, name) {
 }
 /* solve times (per current profile, per set). Each solve = {ms, p, t}: raw ms, penalty (0 | 2 | 'dnf'), timestamp. */
 const getSolves = setId => (Profiles.data().times[setId] = Profiles.data().times[setId] || []);
-function addSolve(setId, ms, p) { getSolves(setId).push({ ms, p: p || 0, t: Date.now() }); Profiles.save(); }
-function clearSolves(setId) { Profiles.data().times[setId] = []; Profiles.save(); }
+function addSolve(setId, ms, p) { getSolves(setId).push({ ms, p: p || 0, t: Date.now() }); Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
+function clearSolves(setId) { Profiles.data().times[setId] = []; Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 
 /* ---------- User menu UI ---------- */
 const userBtn = document.getElementById('userBtn'), userPanel = document.getElementById('userPanel'),
@@ -907,7 +907,7 @@ trHistEl.addEventListener('click', e => {                  // inline edit: +2 / 
   if (btn.dataset.act==='p2') s.p = (s.p===2 ? 0 : 2);
   else if (btn.dataset.act==='dnf') s.p = (s.p==='dnf' ? 0 : 'dnf');
   else if (btn.dataset.act==='del') trSolves.splice(i, 1);
-  Profiles.save(); renderStats(); renderHistory();
+  Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(statsKey()); renderStats(); renderHistory();
 });
 document.getElementById('trFilter').addEventListener('change', e => { trFilter=e.target.value; newScramble(); });
 document.getElementById('trProb').addEventListener('change', e => { trProb=e.target.value; newScramble(); });
