@@ -154,7 +154,7 @@ function cycleLearn(set, name) {
 }
 /* solve times (per current profile, per set). Each solve = {ms, p, t}: raw ms, penalty (0 | 2 | 'dnf'), timestamp. */
 const getSolves = setId => (Profiles.data().times[setId] = Profiles.data().times[setId] || []);
-function addSolve(setId, ms, p) { getSolves(setId).push({ ms: Math.round(ms), p: p || 0, t: Date.now() }); Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
+function addSolve(setId, ms, p, scr) { const o = { ms: Math.round(ms), p: p || 0, t: Date.now() }; if (scr) o.scr = scr; getSolves(setId).push(o); Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 function clearSolves(setId) { Profiles.data().times[setId] = []; Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(setId); }
 
 /* custom algorithms a user adds to a sheet case, and which algorithm they prefer to see.
@@ -917,6 +917,22 @@ function newScramble() {
   trScrambleEl.textContent = showMoves(trScramble);
   trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
 }
+/* the current scramble as a re-applicable string (for saving with a solve) */
+const curScramble = () => Array.isArray(trScramble) ? trScramble.join(' ') : (trScramble ? String(trScramble) : '');
+/* load a saved scramble back into the trainer for another attempt (idles the timer, keeps the scramble fixed) */
+function retryScramble(scr) {
+  if (!scr) return;
+  trState = 'idle'; cancelAnimationFrame(trRAF); trTimerEl.classList.remove('armed','inspecting'); trTimerEl.textContent = trCount ? '—' : '0.00';
+  trCur = null;                                   // a fixed scramble, not a generated case
+  trScramble = tokenize(scr);
+  if (trMode !== 'solve') trDiagram.innerHTML = (trKind==='oll'||trKind==='pll') ? diagramFor(trKind, trScramble) : '<div class="dia-note">Solve the case<br>on the cube →</div>';
+  if (isRenderable(trPuzzle)) { tcube.reset(); tcube.applyInstant(trScramble); }
+  else if (SIM[trPuzzle]) { SIM[trPuzzle].setTokens(trScramble); trainerSimEl.innerHTML = SIM[trPuzzle].svg(); }
+  trScrambleEl.textContent = showMoves(trScramble);
+  trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
+  trScrambleEl.classList.remove('flash'); void trScrambleEl.offsetWidth; trScrambleEl.classList.add('flash');   // brief cue
+  trScrambleEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
 function trReveal() {
   if (!trCur) return;
   trAnswer.innerHTML = `<b>${trCur.name}</b><span class="mono">${trMoves(trCur).replace(/'/g,'′')}</span>`
@@ -973,21 +989,14 @@ function renderHistory() {
   let rows = '';
   for (let i = trSolves.length-1; i >= 0; i--) {
     const s = trSolves[i];
-    const date = new Date(s.t).toLocaleString([], { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
     const e=effMs(s), v5=avgN(trSolves,i,5), v12=avgN(trSolves,i,12);
     rows += `<tr data-i="${i}">
       <td class="num">${i+1}</td>
-      <td class="single ${s.p==='dnf'?'dnf':''}${pbClass(X.single,e)}">${fmtSolve(s)}</td>
+      <td class="single click ${s.p==='dnf'?'dnf':''}${pbClass(X.single,e)}" data-i="${i}" title="Tap for penalties, scramble & retry">${fmtSolve(s)}</td>
       <td class="${pbClass(X.a5,v5).trim()}">${fmtAvg(v5)}</td>
-      <td class="${pbClass(X.a12,v12).trim()}">${fmtAvg(v12)}</td>
-      <td class="date">${date}</td>
-      <td class="acts">
-        ${trCount ? '' : `<button data-act="p2" class="${s.p===2?'on':''}" title="Toggle +2">+2</button>`}
-        <button data-act="dnf" class="${s.p==='dnf'?'on':''}" title="Toggle DNF">DNF</button>
-        <button data-act="del" title="Delete solve">✕</button>
-      </td></tr>`;
+      <td class="${pbClass(X.a12,v12).trim()}">${fmtAvg(v12)}</td></tr>`;
   }
-  trHistEl.innerHTML = `<table class="times-table"><thead><tr><th>#</th><th>${trCount?'Moves':'Single'}</th><th>Ao5</th><th>Ao12</th><th>Date</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  trHistEl.innerHTML = `<table class="times-table"><thead><tr><th>#</th><th>${trCount?'Moves':'Single'}</th><th>Ao5</th><th>Ao12</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function reloadTimes() { trSolves = getSolves(statsKey()); renderStats(); renderHistory(); }
 function tick() { trTimerEl.textContent = PREFS.hideTimer ? 'solving…' : fmt(performance.now()-trStart); trRAF = requestAnimationFrame(tick); }
@@ -1000,7 +1009,7 @@ function stopSolve() {
   cancelAnimationFrame(trRAF); trState='idle'; trTimerEl.classList.remove('armed');
   const rawMs = performance.now()-trStart;
   const p = trPenalty==='dnf' ? 'dnf' : trPenalty===2000 ? 2 : 0; trPenalty=0;
-  addSolve(statsKey(), rawMs, p);
+  addSolve(statsKey(), rawMs, p, curScramble());
   trTimerEl.textContent = p==='dnf' ? 'DNF' : fmt(rawMs + (p===2?2000:0)) + (p===2 ? ' +2' : '');
   renderStats(); renderHistory(); newScramble();
 }
@@ -1009,7 +1018,7 @@ const countInput = document.getElementById('countInput');
 function recordCount(dnf) {
   let v = parseInt(countInput.value, 10);
   if (!dnf && (!Number.isFinite(v) || v < 1)) { countInput.focus(); return; }
-  addSolve(statsKey(), dnf ? 0 : v, dnf ? 'dnf' : 0);
+  addSolve(statsKey(), dnf ? 0 : v, dnf ? 'dnf' : 0, curScramble());
   countInput.value = ''; countInput.focus();
   renderStats(); renderHistory(); newScramble();
 }
@@ -1069,13 +1078,42 @@ document.getElementById('trReveal').onclick = trReveal;
 document.getElementById('trNext').onclick = trSkip;
 document.getElementById('trPlay').onclick = trPlayAnswer;
 document.getElementById('trReset').onclick = () => { clearSolves(statsKey()); trSolves = getSolves(statsKey()); renderStats(); renderHistory(); };
-trHistEl.addEventListener('click', e => {                  // inline edit: +2 / DNF / delete
-  const btn = e.target.closest('button[data-act]'); if (!btn) return;
-  const i = +btn.closest('tr').dataset.i, s = trSolves[i]; if (!s) return;
-  if (btn.dataset.act==='p2') s.p = (s.p===2 ? 0 : 2);
-  else if (btn.dataset.act==='dnf') s.p = (s.p==='dnf' ? 0 : 'dnf');
-  else if (btn.dataset.act==='del') trSolves.splice(i, 1);
-  Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(statsKey()); renderStats(); renderHistory();
+/* tap a time → popover with penalties, the date, its scramble + retry, and delete */
+let _smEl = null, _smClose = null;
+function closeSolveMenu() { if (_smEl) { _smEl.remove(); _smEl = null; } if (_smClose) { document.removeEventListener('pointerdown', _smClose); _smClose = null; } }
+function openSolveMenu(anchor, i) {
+  closeSolveMenu();
+  const s = trSolves[i]; if (!s) return;
+  const date = new Date(s.t).toLocaleString([], { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+  const isOk = s.p !== 2 && s.p !== 'dnf';
+  const el = document.createElement('div'); el.className = 'solvemenu';
+  el.innerHTML = `<div class="sm-head"><b>Solve #${i+1}</b><span class="sm-time">${fmtSolve(s)}</span></div>
+    <div class="sm-date">${date}</div>
+    <div class="sm-pens">
+      ${trCount ? '' : `<button data-p="0" class="${isOk?'on':''}">OK</button><button data-p="2" class="${s.p===2?'on':''}">+2</button>`}
+      <button data-p="dnf" class="${s.p==='dnf'?'on':''}">DNF</button>
+    </div>
+    ${s.scr ? `<div class="sm-scr-label">Scramble</div>
+      <div class="sm-scr-row"><span class="sm-scr">${String(s.scr).replace(/'/g,'′')}</span><button class="sm-retry" title="Load this scramble to try again">↻ Retry</button></div>`
+            : `<div class="sm-noscr">No scramble saved for this solve.</div>`}
+    <button class="sm-del">✕ Delete solve</button>`;
+  document.body.appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - el.offsetWidth - 12)) + 'px';
+  el.style.top  = (r.bottom + 6 + window.scrollY) + 'px';
+  const refresh = () => { Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(statsKey()); renderStats(); renderHistory(); };
+  el.querySelectorAll('.sm-pens button').forEach(b => b.onclick = () => {
+    s.p = b.dataset.p==='dnf' ? 'dnf' : b.dataset.p==='2' ? 2 : 0; refresh(); closeSolveMenu();
+  });
+  el.querySelector('.sm-del').onclick = () => { trSolves.splice(i, 1); refresh(); closeSolveMenu(); };
+  const rt = el.querySelector('.sm-retry'); if (rt) rt.onclick = () => { retryScramble(s.scr); closeSolveMenu(); };
+  _smEl = el;
+  _smClose = e => { if (!el.contains(e.target) && e.target !== anchor) closeSolveMenu(); };
+  setTimeout(() => document.addEventListener('pointerdown', _smClose), 0);
+}
+trHistEl.addEventListener('click', e => {
+  const cell = e.target.closest('td.single.click'); if (!cell) return;
+  openSolveMenu(cell, +cell.dataset.i);
 });
 document.getElementById('trFilter').addEventListener('change', e => { trFilter=e.target.value; newScramble(); });
 document.getElementById('trProb').addEventListener('change', e => { trProb=e.target.value; newScramble(); });

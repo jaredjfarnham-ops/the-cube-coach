@@ -361,6 +361,28 @@
   .times-table td.acts button:hover { border-color: var(--accent); color: var(--text); }
   .times-table td.acts button.on { background: var(--accent); border-color: var(--accent); color: #06122e; }
   .times-table tbody tr:hover td { background: rgba(255,255,255,.03); }
+  .times-table td.single.click { cursor: pointer; }
+  .times-table td.single.click:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+  /* per-solve popover (penalties / date / scramble + retry / delete) */
+  .solvemenu { position: absolute; z-index: 60; width: 250px; max-width: calc(100vw - 24px); background: var(--panel);
+    border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.5); padding: 11px; color: var(--text); }
+  .sm-head { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; }
+  .sm-head .sm-time { font-family: 'Consolas', monospace; font-weight: 700; }
+  .sm-date { font-size: 11px; color: var(--muted); margin: 2px 0 9px; }
+  .sm-pens { display: flex; gap: 6px; margin-bottom: 10px; }
+  .sm-pens button { flex: 1; background: var(--bg, #0c1330); border: 1px solid #313a6b; color: var(--muted); border-radius: 8px; font-size: 12px; padding: 5px 0; cursor: pointer; }
+  .sm-pens button:hover { border-color: var(--accent); color: var(--text); }
+  .sm-pens button.on { background: var(--accent); border-color: var(--accent); color: #06122e; font-weight: 600; }
+  .sm-scr-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 3px; }
+  .sm-scr-row { display: flex; gap: 7px; align-items: flex-start; margin-bottom: 10px; }
+  .sm-scr { flex: 1; font-family: 'Consolas', monospace; font-size: 11.5px; line-height: 1.4; word-break: break-word; color: var(--text); }
+  .sm-retry { flex-shrink: 0; background: var(--accent); border: none; color: #06122e; font-weight: 600; font-size: 11.5px; border-radius: 8px; padding: 5px 9px; cursor: pointer; white-space: nowrap; }
+  .sm-retry:hover { filter: brightness(1.08); }
+  .sm-noscr { font-size: 11px; color: var(--muted); margin-bottom: 10px; font-style: italic; }
+  .sm-del { width: 100%; background: none; border: 1px solid #313a6b; color: var(--muted); border-radius: 8px; font-size: 12px; padding: 5px 0; cursor: pointer; }
+  .sm-del:hover { border-color: #dc2626; color: #ff7a7a; }
+  .trainer-scramble.flash { animation: scr-flash .9s ease; }
+  @keyframes scr-flash { 0%,100% { background: transparent; } 25% { background: color-mix(in srgb, var(--accent) 28%, transparent); } }
   /* PB highlights: best (green) / worst (red), colours customisable via Settings → CSS vars */
   .times-table td.pb-best  { color: var(--pb-best, #16a34a); font-weight: 700; background: color-mix(in srgb, var(--pb-best, #16a34a) 16%, transparent); }
   .times-table td.pb-worst { color: var(--pb-worst, #dc2626); font-weight: 700; background: color-mix(in srgb, var(--pb-worst, #dc2626) 16%, transparent); }

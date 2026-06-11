@@ -98,9 +98,10 @@
     rows.forEach(r => { (cloud[r.set_id] = cloud[r.set_id] || []).push({ ms: r.ms, p: penFromTxt(r.penalty), t: Number(r.t) }); });
     const d = Profiles.data(); d.times = d.times || {};
     new Set([...Object.keys(d.times), ...Object.keys(cloud)]).forEach(setId => {
+      const localScr = {}; (d.times[setId] || []).forEach(s => { if (s.scr) localScr[s.t] = s.scr; });   // scrambles are kept locally only
       const byT = new Map();
-      (cloud[setId] || []).forEach(s => byT.set(s.t, s));                       // cloud first…
-      (d.times[setId] || []).forEach(s => { if (!byT.has(s.t)) byT.set(s.t, s); }); // …keep local-only
+      (cloud[setId] || []).forEach(s => { if (!s.scr && localScr[s.t]) s.scr = localScr[s.t]; byT.set(s.t, s); }); // cloud first, keep local scramble
+      (d.times[setId] || []).forEach(s => { if (!byT.has(s.t)) byT.set(s.t, s); });                       // …keep local-only solves
       d.times[setId] = [...byT.values()].sort((a, b) => a.t - b.t);
     });
     Profiles.save();
