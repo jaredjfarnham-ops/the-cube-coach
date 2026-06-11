@@ -719,6 +719,20 @@ function groupTriggers(alg) {
   return out.join(' ');
 }
 const fmtAlg = m => groupTriggers(m).replace(/'/g, '′');
+/* diagram setup for a case: invert the alg, then — if it left the cube rotated (an alg with an
+   uncancelled whole-cube rotation, e.g. a one-handed V/Y perm with a lone x) — re-orient so the
+   centres are back home, or the diagram reads the wrong face. No-op for net-rotationless algs. */
+function caseSetup(alg) {
+  const inv = invertSeq(alg);
+  for (const O of _ccOrients) {
+    const st = makeState(); st.reset();
+    try { st.applyTokens(inv); if (O) st.applyTokens(tokenize(O)); } catch (e) { continue; }
+    const centresHome = st.cubies().every(c => (Math.abs(c.home.x)+Math.abs(c.home.y)+Math.abs(c.home.z)) !== 1
+      || (c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z));
+    if (centresHome) return O ? inv.concat(tokenize(O)) : inv;
+  }
+  return inv;
+}
 function renderSheet(path) {
   const L = LESSONS[path], set = ALG_SETS[L.set], goal = sheetGoal(L);
   sheetIntro.innerHTML = `<h2>${L.title}</h2>` + (L.intro||[]).map(p=>`<p>${p}</p>`).join('')
@@ -730,7 +744,7 @@ function renderSheet(path) {
     let current = (() => { const p = getAlgPref(L.set, a.name); return p && inList(p) ? p : a.moves; })();
     const card = document.createElement('button'); card.className = 'case-card learn-' + getLearn(L.set, a.name);
     card.innerHTML = `<span class="learn-dot"></span>
-      <div class="case-dia">${diagramFor(L.kind, invertSeq(a.moves))}</div>
+      <div class="case-dia">${diagramFor(L.kind, caseSetup(a.moves))}</div>
       <div class="case-name">${a.name}</div>
       <div class="case-alg"></div>
       <span class="case-menubtn" title="Choose an algorithm or add your own">⋮</span>`
