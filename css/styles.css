@@ -265,7 +265,7 @@
   .trainer-answer .mono { display: block; font-family: 'Consolas', monospace; font-size: 13px; color: var(--accent-2); margin-top: 3px; }
   .trainer-answer .mono.alt { font-size: 11.5px; color: var(--muted); }
   .trainer-panel { display: flex; flex-direction: column; gap: 12px; }
-  .trainer-timer { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; line-height: 1; }
+  .trainer-timer { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 1px; line-height: 1; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; }
   .trainer-filters { display: flex; flex-direction: column; gap: 8px; }
   .filt-sel { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); }
   .filt-sel select { flex: 1; background: var(--panel); color: var(--text); border: 1px solid #313a6b; border-radius: 8px; padding: 6px 9px; font-size: 12.5px; cursor: pointer; }
@@ -424,9 +424,13 @@
     /* one horizontally-scrollable row of tabs instead of many wrapped rows */
     .megabar { flex-wrap: nowrap; overflow-x: auto; padding: 0 8px; -webkit-overflow-scrolling: touch; }
     .puzzle-tab { padding: 12px 10px 10px; font-size: 13px; white-space: nowrap; flex: none; }
-    .megapanel { left: 6px; right: 6px; padding: 16px; gap: 16px; max-height: 70vh; overflow-y: auto; flex-direction: column; }
-    .method-col { min-width: 150px; max-width: none; flex: 1 1 150px; }
-    .cat-puzzles { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid #2a3160; padding: 0 0 10px; margin: 0 0 10px; min-width: 0; }
+    /* column stack + NO wrap (base megapanel wraps, which threw the tall methods pane into an off-screen 2nd column) */
+    .megapanel { left: 6px; right: 6px; padding: 16px; gap: 14px; max-height: 78vh; overflow-y: auto; overflow-x: hidden; flex-direction: column; flex-wrap: nowrap; }
+    /* stack every method into ONE full-width column so nothing runs off the screen edge */
+    .method-col { min-width: 0; max-width: none; width: 100%; flex: none; }
+    .cat-methods { flex-direction: column; gap: 18px; width: 100%; min-width: 0; flex: none; }
+    .lesson-link { font-size: 14px; padding: 9px 9px; }
+    .cat-puzzles { flex-direction: row; width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; flex: none; border-right: none; border-bottom: 1px solid #2a3160; padding: 0 0 10px; margin: 0 0 10px; }
     .cat-pz { white-space: nowrap; flex: none; }
     .crumbbar { padding: 8px 15px; font-size: 12px; }
     /* lessons stack: list on top, cube below */

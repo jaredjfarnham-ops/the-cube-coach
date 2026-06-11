@@ -459,7 +459,7 @@ function updateTrHint() {
   h.innerHTML =
     trCubeMode==='mouse'    ? 'Solve on screen with the mouse: <b>drag a sticker</b> to turn, <b>drag the background</b> to rotate (double-click to recentre). Timer starts on your first move and stops when solved, in any orientation.' :
     trCubeMode==='keyboard' ? 'Solve with the <b>keyboard</b> (3×3): R L U D F B · slices M E S · rotations x y z — hold <b>Shift</b> for prime, <b>Ctrl</b> for double. <b>Del</b> restarts the scramble; drag the background to look around. Timer starts on your first move and stops when solved.' :
-                              'Apply the scramble to your cube, then press <b>Space</b> to start/stop · <b>R</b> reveal · <b>N</b> next';
+                              'Apply the scramble to your cube, then <b>tap the timer</b> or press <b>Space</b> to start/stop · <b>R</b> reveal · <b>N</b> next';
 }
 /* Keyboard solving for 3-D SVG sims (Pyraminx) — camera-relative, Alt = tip, drives the timer. */
 document.addEventListener('keydown', e => {
@@ -945,6 +945,24 @@ document.addEventListener('keyup', e => {
   if (trState==='idle') { inspectionOn() ? startInspection() : startSolve(); }
   else if (trState==='inspecting') endInspection();
 });
+/* Tap the timer to start & stop — mobile has no spacebar. Mirrors the Space arm(press)/start(release)/stop logic. */
+function timerPressStart() {
+  if (trCount || trCubeMode!=='physical' || trView.classList.contains('hidden')) return false;
+  if (trState==='running') { stopSolve(); trIgnoreUp = true; }     // tap while running → stop
+  else { trArmed = true; trTimerEl.classList.add('armed'); if (trState==='idle') trTimerEl.textContent = '0.00'; }
+  return true;
+}
+function timerPressEnd() {
+  if (trCount || trCubeMode!=='physical' || trView.classList.contains('hidden')) return;
+  if (trIgnoreUp) { trIgnoreUp = false; trArmed = false; trTimerEl.classList.remove('armed'); return; }
+  if (!trArmed) return;
+  trArmed = false; trTimerEl.classList.remove('armed');
+  if (trState==='idle') { inspectionOn() ? startInspection() : startSolve(); }
+  else if (trState==='inspecting') endInspection();
+}
+trTimerEl.addEventListener('pointerdown', e => { if (timerPressStart()) e.preventDefault(); });
+trTimerEl.addEventListener('pointerup',   e => { e.preventDefault(); timerPressEnd(); });
+trTimerEl.addEventListener('pointercancel', () => { trArmed = false; trTimerEl.classList.remove('armed'); });
 
 function renderTrainer(path) {
   const L = LESSONS[path];
