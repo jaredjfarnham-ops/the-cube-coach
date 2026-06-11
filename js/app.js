@@ -374,7 +374,7 @@ const KEYSPEC = {
   x:{d:{x:1,y:0,z:0},  k:'rot'},   y:{d:{x:0,y:-1,z:0}, k:'rot'},   z:{d:{x:0,y:0,z:1},  k:'rot'},
 };
 function makeCubeControls(cube, cubeEl, sceneEl, opts={}) {
-  const DEF_RX=-22.5, DEF_RY=-35;   // face-up 3/4: X pitch 22.5°, Y yaw 35°
+  const DEF_RX=-30, DEF_RY=-18;   // face-up 3/4: more top (white), less of the right face
   let rx=DEF_RX, ry=DEF_RY, mode=null, sx=0, sy=0, downFace=null;
   let enabled=false, dragTurns=false, keysActive=false;   // orbit when enabled; sticker-drag turns only if dragTurns; keyboard only if keysActive
   const faceMap = new Map();
