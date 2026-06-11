@@ -157,15 +157,16 @@
         <input class="auth-in" id="authEmail" type="email" placeholder="Email" autocomplete="email">
         <input class="auth-in" id="authPass" type="password" placeholder="Password" autocomplete="current-password">
         <div class="auth-btns"><button class="ctl" id="authLogin">Log in</button><button class="ctl" id="authSignup">Sign up</button></div>
+        <button class="auth-link hidden" id="authForgot" type="button">Forgot password?</button>
         <div class="auth-msg" id="authMsg"></div>`;
-      const em = box.querySelector('#authEmail'), pw = box.querySelector('#authPass'), msg = box.querySelector('#authMsg');
+      const em = box.querySelector('#authEmail'), pw = box.querySelector('#authPass'), msg = box.querySelector('#authMsg'), forgot = box.querySelector('#authForgot');
       const setMsg = (t, err) => { msg.textContent = t || ''; msg.classList.toggle('err', !!err); };
       const valid = () => em.value.trim() && pw.value.length >= 6 || (setMsg('Enter an email and a 6+ char password.', true), false);
       box.querySelector('#authLogin').onclick = async () => {
         if (!em.value.trim() || !pw.value) return setMsg('Enter your email and password.', true);
         setMsg('Signing in…');
         const { error } = await sb.auth.signInWithPassword({ email: em.value.trim(), password: pw.value });
-        if (error) setMsg(error.message, true);
+        if (error) { setMsg(error.message, true); forgot.classList.remove('hidden'); }   // offer a reset on bad credentials
       };
       box.querySelector('#authSignup').onclick = async () => {
         if (!valid()) return;
@@ -175,10 +176,37 @@
         else if (data.user && !data.session) setMsg('Account created — check your email to confirm, then log in.');
         else setMsg('Account created!');
       };
+      forgot.onclick = async () => {
+        const e = em.value.trim();
+        if (!e) return setMsg('Enter your email above, then tap Forgot password.', true);
+        setMsg('Sending reset link…');
+        const { error } = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname });
+        setMsg(error ? error.message : 'Check your email for a password-reset link.', !!error);
+      };
     }
   }
+  /* arrived back via the reset-email link → let them set a new password */
+  function renderRecoveryUI() {
+    if (!panel) return;
+    panel.classList.remove('hidden');   // open the user menu so the prompt is visible
+    box.innerHTML = `<div class="auth-title">Set a new password</div>
+      <input class="auth-in" id="authNewPass" type="password" placeholder="New password (6+ chars)" autocomplete="new-password">
+      <button class="ctl" id="authSetPass">Update password</button>
+      <div class="auth-msg" id="authMsg"></div>`;
+    const np = box.querySelector('#authNewPass'), msg = box.querySelector('#authMsg');
+    box.querySelector('#authSetPass').onclick = async () => {
+      if (np.value.length < 6) { msg.textContent = 'Use at least 6 characters.'; msg.classList.add('err'); return; }
+      msg.textContent = 'Updating…'; msg.classList.remove('err');
+      const { error } = await sb.auth.updateUser({ password: np.value });
+      if (error) { msg.textContent = error.message; msg.classList.add('err'); return; }
+      msg.textContent = 'Password updated ✓';
+      const { data } = await sb.auth.getSession();
+      if (data && data.session) onSignIn(data.session);
+    };
+  }
 
-  sb.auth.onAuthStateChange((_event, session) => {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') { renderRecoveryUI(); return; }   // came in via the reset-email link
     if (session && session.user) onSignIn(session);
     else if (signedIn()) onSignOut();
     else renderAuthUI();
