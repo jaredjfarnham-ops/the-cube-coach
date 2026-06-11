@@ -1,6 +1,7 @@
 -- Custom algorithms + preferred-algorithm choices, synced across devices.
 -- Run this once in the Supabase SQL editor (same project as the `solves` table).
--- Until it exists, custom algorithms still work locally (per device); this just adds cross-device sync.
+-- Safe to re-run. Until it exists, custom algorithms still work locally (per device);
+-- this just adds cross-device sync.
 
 create table if not exists public.user_algs (
   user_id    uuid not null references auth.users (id) on delete cascade,
@@ -17,8 +18,12 @@ create unique index if not exists user_algs_uniq
 
 alter table public.user_algs enable row level security;
 
--- each user sees and edits only their own rows
-create policy "own rows - select" on public.user_algs for select using (auth.uid() = user_id);
-create policy "own rows - insert" on public.user_algs for insert with check (auth.uid() = user_id);
-create policy "own rows - update" on public.user_algs for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "own rows - delete" on public.user_algs for delete using (auth.uid() = user_id);
+-- each user sees and edits only their own rows (drop-then-create so this script is re-runnable)
+drop policy if exists "user_algs select" on public.user_algs;
+drop policy if exists "user_algs insert" on public.user_algs;
+drop policy if exists "user_algs update" on public.user_algs;
+drop policy if exists "user_algs delete" on public.user_algs;
+create policy "user_algs select" on public.user_algs for select using (auth.uid() = user_id);
+create policy "user_algs insert" on public.user_algs for insert with check (auth.uid() = user_id);
+create policy "user_algs update" on public.user_algs for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "user_algs delete" on public.user_algs for delete using (auth.uid() = user_id);
