@@ -1148,9 +1148,11 @@ function openSolveMenu(anchor, i) {
             : `<div class="sm-noscr">No scramble saved for this solve.</div>`}
     <button class="sm-del">✕ Delete solve</button>`;
   document.body.appendChild(el);
+  // Centre the menu over the tapped time, clamped to stay on-screen.
   const r = anchor.getBoundingClientRect();
-  el.style.left = Math.max(8, Math.min(r.left, window.innerWidth - el.offsetWidth - 12)) + 'px';
-  el.style.top  = (r.bottom + 6 + window.scrollY) + 'px';
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  el.style.left = Math.max(8, Math.min(cx - el.offsetWidth / 2, window.innerWidth - el.offsetWidth - 8)) + 'px';
+  el.style.top  = Math.max(8, Math.min(cy - el.offsetHeight / 2, window.innerHeight - el.offsetHeight - 8)) + window.scrollY + 'px';
   const refresh = () => { Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(statsKey()); renderStats(); renderHistory(); };
   el.querySelectorAll('.sm-pens button').forEach(b => b.onclick = () => {
     s.p = b.dataset.p==='dnf' ? 'dnf' : b.dataset.p==='2' ? 2 : 0; refresh(); closeSolveMenu();
