@@ -724,12 +724,23 @@ const fmtAlg = m => groupTriggers(m).replace(/'/g, '′');
    centres are back home, or the diagram reads the wrong face. No-op for net-rotationless algs. */
 function caseSetup(alg) {
   const inv = invertSeq(alg);
+  const llOff = st => { let n=0; st.cubies().forEach(c => {                    // # U-layer edges/corners not home
+    if (c.home.y===-1 && (Math.abs(c.home.x)+Math.abs(c.home.z))>=1 &&
+        !(c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z && JSON.stringify(c.ori)===JSON.stringify(I3))) n++; }); return n; };
   for (const O of _ccOrients) {
-    const st = makeState(); st.reset();
-    try { st.applyTokens(inv); if (O) st.applyTokens(tokenize(O)); } catch (e) { continue; }
-    const centresHome = st.cubies().every(c => (Math.abs(c.home.x)+Math.abs(c.home.y)+Math.abs(c.home.z)) !== 1
-      || (c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z));
-    if (centresHome) return O ? inv.concat(tokenize(O)) : inv;
+    const base = makeState(); base.reset();
+    try { if (O) base.applyTokens(tokenize(O)); base.applyTokens(inv); } catch (e) { continue; }   // re-orient FIRST, then build the case
+    const restHome = base.cubies().every(c => {                  // everything except the last-layer pieces must be home
+      const n = Math.abs(c.home.x)+Math.abs(c.home.y)+Math.abs(c.home.z);
+      if (n === 1) return c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z;   // centre: position only
+      if (c.home.y === -1) return true;                          // a U-layer edge/corner is part of the case
+      return c.pos.x===c.home.x && c.pos.y===c.home.y && c.pos.z===c.home.z && JSON.stringify(c.ori)===JSON.stringify(I3);
+    });
+    if (!restHome) continue;
+    let bk = 0, bll = 99;                                        // show the AUF with the fewest disturbed LL pieces (cleanest case)
+    for (let k = 0; k < 4; k++) { const st = makeState(); st.reset(); if (O) st.applyTokens(tokenize(O)); st.applyTokens(inv);
+      for (let j = 0; j < k; j++) st.applyTokens(['U']); const ll = llOff(st); if (ll < bll) { bll = ll; bk = k; } }
+    return (O ? tokenize(O) : []).concat(inv).concat(Array(bk).fill('U'));
   }
   return inv;
 }
