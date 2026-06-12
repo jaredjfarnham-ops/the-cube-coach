@@ -19,14 +19,18 @@ const C = []; for (let f=0; f<4; f++) for (let i=0; i<9; i++) C.push(centroid(f,
 const rot = p => [p[2], p[0], p[1]];                       // 120° about [1,1,1]
 const close = (a,b) => Math.abs(a[0]-b[0])<1e-6 && Math.abs(a[1]-b[1])<1e-6 && Math.abs(a[2]-b[2])<1e-6;
 
-// p[dst] = src where rot(C[src]) == C[dst]
-const perm = new Array(36).fill(-1);
-for (let dst=0; dst<36; dst++) { for (let src=0; src<36; src++) { if (close(rot(C[src]), C[dst])) { perm[dst]=src; break; } } }
-
-// validate: total permutation, and y^3 = identity
-const bad = perm.filter(x => x<0).length;
 const apply = (st, p) => p.map(s => st[s]);
-let id = [...Array(36).keys()]; let s = id; for (let k=0;k<3;k++) s = apply(s, perm);
-const cube3 = s.every((v,i)=>v===i);
-console.log('unmatched facelets:', bad, ' y^3==identity:', cube3, ' isPermutation:', new Set(perm).size===36);
-console.log('\nY: [' + perm.join(',') + '],');
+function permFor(map) {                                     // map: 3-D point -> 3-D point
+  const p = new Array(36).fill(-1);
+  for (let dst=0; dst<36; dst++) for (let src=0; src<36; src++) if (close(map(C[src]), C[dst])) { p[dst]=src; break; }
+  return p;
+}
+// y = 120° about [1,1,1] (cycles L->R->B->L); mirror M = swap x,y (fixes U,B, swaps L,R)
+const Yp = permFor(p => [p[2], p[0], p[1]]);
+const Mp = permFor(p => [p[1], p[0], p[2]]);
+const pow = (p,n) => { let s=[...Array(36).keys()]; for(let k=0;k<n;k++) s=apply(s,p); return s; };
+const isId = s => s.every((v,i)=>v===i);
+console.log('y: unmatched', Yp.filter(x=>x<0).length, 'y^3==id', isId(pow(Yp,3)), 'perm', new Set(Yp).size===36);
+console.log('M: unmatched', Mp.filter(x=>x<0).length, 'M^2==id', isId(pow(Mp,2)), 'perm', new Set(Mp).size===36);
+console.log('\nY: [' + Yp.join(',') + '],');
+console.log('M: [' + Mp.join(',') + '],');

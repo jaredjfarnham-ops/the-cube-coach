@@ -264,6 +264,44 @@
       ]),
       'The two <b>R U R′…</b> triggers are inverses of each other: one cycles the three top edges clockwise, the other counter-clockwise (AUF with a <b>U</b> to aim). Chain a couple of these 3-cycles to place all four edges. L4E removes the separate last-layer step, cutting move count and time. It’s the standard bridge toward advanced methods like <b>OKA</b> and <b>one-flip</b>.'
     ]};
+  /* ---------------- Pyraminx — FP (Face-Permuting) advanced method ---------------- */
+  LESSONS['pyra/fp/face'] = { type:'text', title:'Pyraminx — FP: Make a Face',
+    intro:[
+      '<b>FP (Face-Permuting</b>, a.k.a. <b>Fan’s Pyraminx)</b> is the <b>Ortega of Pyraminx</b>: build one face, then permute everything in a single algorithm. It’s an advanced, low-move method that pairs naturally with the L4E recognition you already know.',
+      '<b>Step 1 — make one full face.</b> Pick any colour and get all of that face one solid colour. The pieces do <b>not</b> need to be permuted correctly — only the colour of that one face matters. This is intuitive and short (about <b>3–7 moves</b>); solve the four tips whenever it’s convenient.',
+      'Then hold that made face <b>down</b> and move to Step 2 (Permute). Because you don’t commit to a solved first layer, FP keeps move count low and lookahead easy.'
+    ]};
+  LESSONS['pyra/fp/permute'] = { type:'text', title:'Pyraminx — FP: Permute Everything',
+    intro:[
+      'With one face made and held <b>down</b>, a single algorithm permutes the rest. <b>Recognise by the bottom first</b> — how the three edges of your made face are arranged — then match the top. <b>Click any case to watch it solve on the puzzle.</b>',
+      'These algorithms are <b>engine-generated and verified</b> (optimal solutions found by exhaustive search), and they’re <b>mirror-folded</b>: if your case is the mirror image, do the mirror of the algorithm (swap L↔R and reverse).',
+      '<b>Solved bottom</b> — the three bottom edges are already in place; only the top needs permuting:',
+      ref([
+        ['Solved bottom — A', "L B U B' U' L'"],
+        ['Solved bottom — B', "L U' L' U' L U' L'"],
+        ['Solved bottom — C', "L U' B U' B' U L'"],
+      ]),
+      '<b>Adjacent-swap bottom</b> — two bottom edges are swapped:',
+      ref([
+        ['Adjacent — A', "L R U R' U L'"],
+        ['Adjacent — B', "L R' U R U L'"],
+        ['Adjacent — C', "R L' R' B L' B' L'"],
+        ['Adjacent — D', "R L' R' B L' B' L' U'"],
+        ['Adjacent — E', "R B U' L B' R' U' L'"],
+        ['Adjacent — F', "B R U' B' L R' U L'"],
+        ['Adjacent — G', "L R U' L U' L' R' L'"],
+      ]),
+      '<b>3-cycle bottom</b> — the three bottom edges are cycled:',
+      ref([
+        ['3-cycle — A', "L R' U R' U' R' L'"],
+        ['3-cycle — B', "B R B' L U' R' U' L'"],
+        ['3-cycle — C', "L' B' R B L' R' U' L'"],
+        ['3-cycle — D', "L' B' R L' B R' U' L'"],
+        ['3-cycle — E', "R' L R' B' U' B R' L'"],
+        ['3-cycle — F', "B R B' R L U' R L'"],
+      ]),
+      '16 cases cover the whole step (up to grip rotation, top AUF and mirror). Drill recognition: glance at the bottom edges to pick the group, then the top to pick the case. With one-face-make + one alg + tips, FP is a strong sub-12 method.'
+    ]};
   LESSONS['pyra/timer/solve'] = { type:'trainer', solveOnly:true, puzzle:'pyra', title:'Pyraminx Timer',
     intro:['A full-solve timer with random Pyraminx scrambles (U L R B + tips). Solve on your own puzzle, hold <b>Space</b> and release to start, then press a key to stop. Times save with Ao5 / Ao12.'] };
 

@@ -81,6 +81,7 @@ const PUZZLES = [
   { id:'pyra', name:'Pyraminx', art:'pyra', methods:[
       { id:'lbl', name:'Layer by Layer', blurb:'Tips and one layer, then the last layer.', items:[ {id:'tips',name:'Tips & Centers'}, {id:'l1',name:'First Layer'}, {id:'ll',name:'Last Layer Trainer'} ]},
       { id:'l4e', name:'Keyhole / L4E', blurb:'Intermediate last-layer methods.', items:[ {id:'setup',name:'Setup'}, {id:'l4e',name:'Last 4 Edges'} ]},
+      { id:'fp', name:'FP (Face-Permuting)', blurb:'Advanced "Ortega of Pyraminx": make a face, then permute everything in one alg.', items:[ {id:'face',name:'Make a Face'}, {id:'permute',name:'Permute Everything'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with random Pyraminx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Pyraminx Timer'} ]},
     ]},
   { id:'mega', name:'Megaminx', art:'mega', methods:[

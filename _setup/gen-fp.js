@@ -11,6 +11,7 @@ const P = {
   R:[0,1,22,3,19,21,6,7,25,9,10,11,12,13,14,15,16,17,18,31,20,32,29,23,24,35,26,27,28,2,30,4,5,33,34,8],
   B:[0,1,2,3,4,5,6,7,8,9,28,11,30,31,14,15,34,17,18,19,13,21,10,12,24,25,16,27,22,29,23,20,32,33,26,35],
   Y:[9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,0,1,2,3,4,5,6,7,8,30,31,28,32,29,27,34,35,33],
+  M:[0,2,1,5,4,3,6,8,7,18,20,19,23,22,21,24,26,25,9,11,10,14,13,12,15,17,16,32,31,29,30,28,27,35,34,33],
 };
 const apply = (st, p) => p.map(s => st[s]);
 const twice = (st, p) => apply(apply(st, p), p);
@@ -47,9 +48,16 @@ function solveAlg(st) { let cur = st, out = []; while (key(cur) !== SK) { const 
 // --- enumerate FP cases: face 3 solid + unsolved, grouped up to the grip symmetry Yc
 //     (rotation WITH recolour, so it maps cases→equivalent cases) and the top-corner AUF (U turns) ---
 const cmap = [2,0,1,3];                            // colour relabel that makes Y(solved)==solved
-const Yc  = s => apply(s, P.Y).map(c => cmap[c]);  // proper grip symmetry
+const cmapM = [0,2,1,3];                           // colour relabel that makes M(solved)==solved
+const Yc  = s => apply(s, P.Y).map(c => cmap[c]);  // proper grip symmetry (rotation)
 const Yc2 = s => Yc(Yc(s));
-const gens = [ s => MOVES.U(s), s => MOVES["U'"](s), Yc, Yc2 ];
+const Mc  = s => apply(s, P.M).map(c => cmapM[c]); // mirror symmetry
+const gens = [ s => MOVES.U(s), s => MOVES["U'"](s), Yc, Yc2, Mc ];
+// bottom-edge side colours [face0 LR, face1 LB, face2 BR] → bottom permutation type
+const bottomType = st => { const s = [st[4], st[13], st[22]].join('');
+  if (s === '012') return 'Solved bottom';
+  if (s === '120' || s === '201') return '3-cycle bottom';
+  return 'Adjacent swap bottom'; };
 const fss = [];
 for (const k of dist.keys()) { if (k === SK) continue; const st = k.split('').map(Number); if (faceSolid(st, 3)) fss.push(k); }
 console.error('raw face-3-solid states:', fss.length);
@@ -61,9 +69,13 @@ for (const start of fss) {
     for (const g of gens) { const nk = key(g(cs)); if (!orbit.has(nk)) { orbit.add(nk); q.push(nk); } } }
   orbit.forEach(k => seen.add(k));
   let best = null;
-  orbit.forEach(k => { if (!dist.has(k)) return; const a = solveAlg(k.split('').map(Number)); if (!best || a.length < best.len) best = { alg: a.join(' '), len: a.length }; });
-  if (best) cases.push(best);
+  orbit.forEach(k => { if (!dist.has(k)) return; const st = k.split('').map(Number); const a = solveAlg(st);
+    if (!best || a.length < best.len) best = { alg: a.join(' '), len: a.length, bottom: bottomType(st) }; });
+  if (best && best.len > 0) cases.push(best);     // drop the trivial AUF-only "case"
 }
-cases.sort((a,b)=>a.len-b.len);
-console.error('FP cases (up to grip symmetry + U-AUF):', cases.length);
-cases.forEach((c,i)=>console.log(`${i+1}\t${c.len}\t${c.alg}`));
+cases.sort((a,b)=> a.bottom.localeCompare(b.bottom) || a.len - b.len);
+console.error('FP cases (grip symmetry + mirror + U-AUF):', cases.length);
+const byBottom = {};
+cases.forEach(c => (byBottom[c.bottom] = byBottom[c.bottom] || []).push(c));
+for (const b in byBottom) { console.log('\n# ' + b + ' (' + byBottom[b].length + ')');
+  byBottom[b].forEach((c,i) => console.log(`  ${i+1}\t${c.len}\t${c.alg}`)); }
