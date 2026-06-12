@@ -1232,6 +1232,7 @@ trTimerEl.addEventListener('pointerup',   e => { if (isGhostMouse(e)) return; e.
 trTimerEl.addEventListener('pointercancel', () => { trArmed = false; trTimerEl.classList.remove('armed'); });
 
 function renderTrainer(path) {
+  trView.classList.remove('universal');           // a normal lesson-driven timer is not the universal Timer tab
   const L = LESSONS[path];
   document.getElementById('trainerIntro').innerHTML = `<h2>${L.title}</h2>` + (L.intro||[]).map(p=>`<p>${p}</p>`).join('');
   trPuzzle = L.puzzle || path.split('/')[0];
@@ -1297,7 +1298,7 @@ function renderHome() {
    ================================================================ */
 const megabar=document.getElementById('megabar'), megapanel=document.getElementById('megapanel'),
       megawrap=document.getElementById('megawrap'), crumb=document.getElementById('breadcrumb');
-let cur = { p:null, m:null, i:null }, homeMode=true, statsMode=false, openPuzzle=null;
+let cur = { p:null, m:null, i:null }, homeMode=true, statsMode=false, timerMode=false, openPuzzle=null;
 const getP = id => PUZZLES.find(p=>p.id===id);
 const shortName = n => n.split('(')[0].trim();
 const pathOf = (p,m,i) => `${p}/${m}/${i}`;
@@ -1324,6 +1325,10 @@ CATEGORIES.forEach(cat => {
 const playTab = document.createElement('button');
 playTab.className='puzzle-tab'; playTab.dataset.cat='play'; playTab.textContent='🧩 Virtual Cube';
 playTab.addEventListener('click', openPlay); megabar.appendChild(playTab);
+
+const timerTab = document.createElement('button');
+timerTab.className='puzzle-tab'; timerTab.dataset.cat='timer'; timerTab.textContent='⏱ Timer';
+timerTab.addEventListener('click', openTimer); megabar.appendChild(timerTab);
 
 const statsTab = document.createElement('button');
 statsTab.className='puzzle-tab'; statsTab.dataset.cat='stats'; statsTab.textContent='📊 Statistics';
@@ -1379,11 +1384,12 @@ document.addEventListener('keydown', e => { if (e.key==='Escape') closePanel(); 
 const VIEWS = ['view-home','view-notation','view-lesson','view-sheet','view-trainer','view-placeholder','view-play','view-stats'];
 const show = id => VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
 
-function goHome() { homeMode=true; statsMode=false; closePanel(); document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected')); crumb.innerHTML='<b>Home</b>'; renderHome(); show('view-home'); }
-function select(pId,mId,iId) { homeMode=false; statsMode=false; cur={p:pId,m:mId,i:iId}; render(); closePanel(); }
+function goHome() { homeMode=true; statsMode=false; timerMode=false; closePanel(); document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected')); crumb.innerHTML='<b>Home</b>'; renderHome(); show('view-home'); }
+function select(pId,mId,iId) { homeMode=false; statsMode=false; timerMode=false; cur={p:pId,m:mId,i:iId}; render(); closePanel(); }
 
 function render() {
   if (statsMode) { renderStatsView(); return; }   // keep Statistics live across profile switches (explicit nav clears statsMode)
+  if (timerMode) { renderUniversalTimer(); return; }   // keep the universal Timer live across profile switches
   if (homeMode) { show('view-home'); return; }
   const p=getP(cur.p), m=p.methods.find(x=>x.id===cur.m);
   const i=(m.items&&m.items.length)? m.items.find(x=>x.id===cur.i) : null;
@@ -1550,19 +1556,60 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
 playSelect(PLAY_PUZZLES.find(p => p.id==='3x3'));   // initialise
 
 function openPlay() {
-  homeMode=false; statsMode=false; closePanel();
+  homeMode=false; statsMode=false; timerMode=false; closePanel();
   document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected'));
   document.querySelector('.puzzle-tab[data-cat="play"]').classList.add('selected');
   crumb.innerHTML = '<b>Virtual Cube</b>';
   updateStatus(); show('view-play');
 }
 function openStats() {
-  homeMode=false; statsMode=true; closePanel();
+  homeMode=false; statsMode=true; timerMode=false; closePanel();
   document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected'));
   document.querySelector('.puzzle-tab[data-cat="stats"]').classList.add('selected');
   crumb.innerHTML = '<b>Statistics</b>';
   renderStatsView(); show('view-stats');
 }
+/* ---- Universal Timer: a top-level tab running any event's full-solve timer (no per-step Mode selector).
+   Reuses the whole trainer view; solves share each event's existing 'timer:<event>:solve' history. ---- */
+const TIMER_EVENTS = PUZZLES.filter(p => p.methods.some(m => m.id==='timer' && (m.items||[]).some(i => i.id==='solve')))
+                            .map(p => ({ id:p.id, name:shortName(p.name) }));
+let timerEvent = '3x3';
+function loadTimerEvent(ev) {
+  timerEvent = ev;
+  const L = LESSONS[ev+'/timer/solve'] || {};
+  document.getElementById('trainerIntro').innerHTML =
+    `<h2>${shortName(getP(ev).name)} — Timer</h2><p>Full-solve timer for any event — pick one above. Inspection, penalties, scramble and history all work exactly like each event's own timer, and share the same saved records.</p>`;
+  trPuzzle = ev;
+  trCount = !!L.countMode;                       // FMC: record a move count instead of a time
+  trModeDefs = null;
+  trSet = []; trKind = L.kind || 'oll'; trSetId = 'timer:'+ev; trKey = null;
+  trMode = 'solve';
+  trView.classList.toggle('mode-solve', true);
+  trView.classList.toggle('solve-only', true);   // hides the Step/Full Mode selector for every event
+  trView.classList.toggle('count-mode', trCount);
+  document.getElementById('trFilter').value = trFilter;
+  document.getElementById('trProb').value = trProb;
+  configTcube();
+  trState='idle'; cancelAnimationFrame(trRAF); trTimerEl.classList.remove('armed'); trTimerEl.textContent = trCount ? '—' : '0.00';
+  reloadTimes(); newScramble();
+}
+function renderUniversalTimer() {
+  trView.classList.add('universal');             // reveals the Event dropdown, keeps the Mode one hidden
+  document.getElementById('trEvent').value = timerEvent;
+  loadTimerEvent(timerEvent);
+}
+function openTimer() {
+  homeMode=false; statsMode=false; timerMode=true; closePanel();
+  document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected'));
+  document.querySelector('.puzzle-tab[data-cat="timer"]').classList.add('selected');
+  crumb.innerHTML = '<b>Timer</b>';
+  renderUniversalTimer(); show('view-trainer');
+}
+(function initTimerDropdown(){
+  const sel=document.getElementById('trEvent'); if (!sel) return;
+  sel.innerHTML = TIMER_EVENTS.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+  sel.addEventListener('change', e => loadTimerEvent(e.target.value));
+})();
 
 /* ================================================================
    STATISTICS VIEW — historical analysis of every solve on the current

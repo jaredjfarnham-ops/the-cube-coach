@@ -482,6 +482,8 @@
   .trainer-count label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
   .trainer-timer.armed { color: #25c277; }
   .solve-only .mode-row { display: none; }
+  .event-row { display: none; }                                  /* the Event picker is only for the universal Timer tab */
+  .trainer-view.universal .event-row { display: flex; }
   [data-theme="light"] .trainer-scramble { border-color: #d6dcec; }
 
   .scene.small { width: 240px; height: 240px; perspective: 1000px; }
