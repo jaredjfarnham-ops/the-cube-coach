@@ -1158,7 +1158,7 @@ function openSolveMenu(anchor, i) {
   el.querySelector('.sm-del').onclick = () => { trSolves.splice(i, 1); refresh(); closeSolveMenu(); };
   const rt = el.querySelector('.sm-retry'); if (rt) rt.onclick = () => { retryScramble(s.scr); closeSolveMenu(); };
   _smEl = el;
-  _smClose = e => { if (!el.contains(e.target) && e.target !== anchor) closeSolveMenu(); };
+  _smClose = e => { if (isGhostMouse(e)) return; if (!el.contains(e.target) && e.target !== anchor) closeSolveMenu(); };
   setTimeout(() => document.addEventListener('pointerdown', _smClose), 0);
 }
 trHistEl.addEventListener('click', e => {
@@ -1216,8 +1216,17 @@ function timerPressEnd() {
   if (trState==='idle') { inspectionOn() ? startInspection() : startSolve(); }
   else if (trState==='inspecting') endInspection();
 }
-trTimerEl.addEventListener('pointerdown', e => { if (timerPressStart()) e.preventDefault(); });
-trTimerEl.addEventListener('pointerup',   e => { e.preventDefault(); timerPressEnd(); });
+/* Touch taps fire the touch pointer events, then synthesised mouse-compat pointer events
+   ~10ms later. Those "ghost" mouse events would arm→start→stop a solve in a single tap
+   (0.01s phantom solves) and instantly dismiss the solve menu the same tap just opened.
+   Stamp the last real touch and ignore mouse pointer events that closely follow it — while
+   still honouring genuine desktop mouse clicks (no recent touch). */
+let _lastTouchTs = -1e9;
+document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') _lastTouchTs = performance.now(); }, true);
+document.addEventListener('pointerup',   e => { if (e.pointerType !== 'mouse') _lastTouchTs = performance.now(); }, true);
+const isGhostMouse = e => e.pointerType === 'mouse' && (performance.now() - _lastTouchTs) < 700;
+trTimerEl.addEventListener('pointerdown', e => { if (isGhostMouse(e)) return; if (timerPressStart()) e.preventDefault(); });
+trTimerEl.addEventListener('pointerup',   e => { if (isGhostMouse(e)) return; e.preventDefault(); timerPressEnd(); });
 trTimerEl.addEventListener('pointercancel', () => { trArmed = false; trTimerEl.classList.remove('armed'); });
 
 function renderTrainer(path) {
