@@ -437,6 +437,9 @@ function makePyraminx() {
     R:[0,1,2,3,4,21,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,32,22,23,24,25,26,27,28,29,30,31,5,33,34,35],
     B:[0,1,2,3,4,5,6,7,8,9,10,11,30,13,14,15,16,17,18,19,20,21,22,12,24,25,26,27,28,29,23,31,32,33,34,35],
   };
+  // whole-puzzle y rotation (120° about the U-vertex axis): cycles faces 0←1←2←0, face 3 self-rotates.
+  // Computed from the geometry by _setup/gen-pyra-rot.js. y' = apply twice (240°).
+  const ROT = { Y:[9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,0,1,2,3,4,5,6,7,8,30,31,28,32,29,27,34,35,33] };
   const T = 1/3, TT = 2/3;
   const GV = [ [[1,0,0],[TT,T,0],[TT,0,T]], [[TT,T,0],[T,TT,0],[T,T,T]], [[TT,0,T],[T,T,T],[T,0,TT]],
     [[T,TT,0],[0,1,0],[0,TT,T]], [[T,T,T],[0,TT,T],[0,T,TT]], [[T,0,TT],[0,T,TT],[0,0,1]],
@@ -447,6 +450,7 @@ function makePyraminx() {
   function applyTokens(tokens) {
     (Array.isArray(tokens)?tokens:String(tokens).split(/\s+/)).filter(Boolean).forEach(t => {
       const prime = t.includes("'"), V = t.replace(/['2]/g,'').toUpperCase();
+      if (V === 'Y') { applyPerm(ROT.Y); if (prime) applyPerm(ROT.Y); return; }   // whole-puzzle rotation (120°; y' = twice)
       const tbl = (t[0] === t[0].toLowerCase() && /[ulrb]/.test(t[0])) ? TIP : PERM;
       if (!tbl[V]) return;
       applyPerm(tbl[V]); if (prime) applyPerm(tbl[V]);   // 120° move: prime = apply twice
