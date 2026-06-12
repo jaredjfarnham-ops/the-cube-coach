@@ -1572,6 +1572,9 @@ function openStats() {
    ================================================================ */
 const statsView = document.getElementById('view-stats');
 document.getElementById('statsGroupBy').addEventListener('change', e => { statsGroupBy = e.target.value; renderStatsView(); });
+document.getElementById('statsSubX').addEventListener('input', e => {
+  const v=parseFloat(e.target.value); statsSubMs = (Number.isFinite(v)&&v>0) ? Math.round(v*1000) : null; renderStatsView();
+});
 document.getElementById('statsEvents').addEventListener('click', e => { const tr=e.target.closest('tr[data-eid]'); if (!tr) return; statsSelEvent=tr.dataset.eid; renderStatsView(); });
 const STATS_PZNAME = (() => { const m={}; (typeof PUZZLES!=='undefined'?PUZZLES:[]).forEach(p=>{ m[p.id]=p.name.split('(')[0].trim(); }); return m; })();
 function statsLabel(setId) {
@@ -1599,6 +1602,7 @@ function statsMeanSd(solves) {
 }
 let statsGroupBy = 'week';                               // Solve | Hour | Day | Week | Month — x-axis granularity of the trend chart
 let statsSelEvent = null;                                // event id whose trend the chart shows (null → the most-solved event)
+let statsSubMs = null;                                   // sub-X target (ms) for the deep panel; null → auto from the selected event's mean
 function statsBucketStart(t, g) {
   const d=new Date(t);
   if (g==='hour') { d.setMinutes(0,0,0); return d; }
@@ -1648,6 +1652,84 @@ function statsBucketTable(weeks, g) {
     rows+=`<tr><td class="ev">${statsDateFmt(w.start, g)}</td><td>${w.n}</td><td>${w.mean==null?'—':fmt(w.mean)}</td><td>${w.sd==null?'—':fmt(w.sd)}</td></tr>`; }
   return `<table class="stats-table"><thead><tr><th>${head}</th><th>n</th><th>Mean</th><th>σ</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
+/* best / worst / current WCA average of n across the whole history (rolling window) */
+function rollingAo(solves, n) {
+  const cur = avgN(solves, solves.length-1, n);
+  let best=null, worst=null;
+  for (let e=n-1; e<solves.length; e++) { const v=avgN(solves,e,n);
+    if (typeof v==='number') { if (best==null||v<best) best=v; if (worst==null||v>worst) worst=v; } }
+  return { cur, best, worst };
+}
+const fmtA = x => (x==null || x===undefined) ? '—' : x==='dnf' ? 'DNF' : fmt(x);   // average formatter (always time-style, for the stats page)
+/* Deep per-event panel: best/mean/σ/worst, best & current Ao5/12/50/100, sub-X %, DNF rate. */
+function statsDeepPanel(sel) {
+  const deepEl=document.getElementById('statsDeep'), titleEl=document.getElementById('statsDeepTitle'), subInput=document.getElementById('statsSubX');
+  const solves=sel.solves, singles=solves.map(effMs).filter(x=>x!==null);
+  const n=solves.length, valid=singles.length, dnf=solves.filter(s=>s.p==='dnf').length;
+  titleEl.textContent='Averages & distribution — '+statsLabel(sel.id);
+  const ms=statsMeanSd(solves);
+  const best=valid?Math.min(...singles):null, worst=valid?Math.max(...singles):null;
+  if (statsSubMs==null && ms.mean) statsSubMs=Math.max(1000, Math.round(ms.mean/1000)*1000);
+  if (document.activeElement!==subInput) subInput.value = statsSubMs ? (statsSubMs/1000) : '';
+  const sub=statsSubMs, subCount=sub?singles.filter(x=>x<=sub).length:0, subPct=valid?subCount/valid*100:0;
+  const cards=[];
+  cards.push({l:'Best single', v:fmtA(best)});
+  cards.push({l:'Mean', v:fmtA(ms.mean), s:valid+' valid'});
+  cards.push({l:'σ spread', v:ms.sd==null?'—':fmt(ms.sd)});
+  cards.push({l:'Worst single', v:fmtA(worst)});
+  [['Ao5',5],['Ao12',12],['Ao50',50],['Ao100',100]].forEach(([l,k])=>{
+    if (n>=k) { const r=rollingAo(solves,k); cards.push({l:'Best '+l, v:fmtA(r.best), s:'now '+fmtA(r.cur)}); } });
+  cards.push({l:'Sub-'+(sub/1000)+'s', v:subPct.toFixed(0)+'%', s:subCount+' of '+valid});
+  cards.push({l:'DNF rate', v:(n?(dnf/n*100).toFixed(0):'0')+'%', s:dnf+' of '+n, dnf:dnf>0});
+  deepEl.innerHTML = cards.map(c=>`<div class="deep-card"><div class="dc-lbl">${c.l}</div><div class="dc-val${c.dnf?' dnf':''}">${c.v}</div>${c.s?`<div class="dc-sub">${c.s}</div>`:''}</div>`).join('');
+}
+/* Distribution histogram of single times for the selected event. Bars left of the median are "fast" (accent). */
+function statsHistoSVG(solves) {
+  const xs=solves.map(effMs).filter(x=>x!==null).sort((a,b)=>a-b);
+  if (xs.length<5) return '<div class="stats-empty">Need at least 5 timed solves to plot a distribution.</div>';
+  const lo=xs[0], hi=xs[xs.length-1];
+  if (lo===hi) return '<div class="stats-empty">Every solve is identical — no spread to plot.</div>';
+  const bins=Math.min(18, Math.max(6, Math.round(Math.sqrt(xs.length))));
+  const w=(hi-lo)/bins, counts=new Array(bins).fill(0);
+  xs.forEach(v=>{ let b=Math.floor((v-lo)/w); if (b>=bins) b=bins-1; counts[b]++; });
+  const maxC=Math.max(...counts), median=xs[Math.floor(xs.length/2)];
+  const W=760,H=200,padL=30,padR=12,padT=12,ih=H-padT-26, iw=W-padL-padR, bw=iw/bins;
+  let grid='';
+  for (let g=0;g<=2;g++){ const c=Math.round(maxC*g/2), yy=(padT+ih-ih*g/2).toFixed(1);
+    grid+=`<line class="sc-grid" x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}"/><text class="sc-txt" x="${padL-5}" y="${(+yy+3).toFixed(1)}" text-anchor="end">${c}</text>`; }
+  let bars='';
+  for (let i=0;i<bins;i++){ const h=ih*counts[i]/maxC, x=padL+i*bw, y=padT+ih-h, mid=lo+(i+0.5)*w;
+    bars+=`<rect class="hb-bar ${mid>median?'slow':''}" x="${(x+1).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-2).toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" rx="2"><title>${fmt(lo+i*w)}–${fmt(lo+(i+1)*w)}: ${counts[i]} solve${counts[i]===1?'':'s'}</title></rect>`; }
+  const lab=(v,xx,a)=>`<text class="sc-txt" x="${xx}" y="${H-9}" text-anchor="${a}">${fmt(v)}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Distribution of single solve times">${grid}${bars}${lab(lo,padL,'start')}${lab(median,padL+iw/2,'middle')}${lab(hi,W-padR,'end')}</svg>`;
+}
+/* GitHub-style practice heatmap: solves per day across the whole profile, plus active-day & streak counts. */
+function statsHeatRender() {
+  const heatEl=document.getElementById('statsHeat'), subEl=document.getElementById('statsHeatSub');
+  const times=Profiles.data().times||{}, byDay=new Map(); let total=0;
+  Object.keys(times).forEach(id=>(times[id]||[]).forEach(s=>{ const d=new Date(s.t); d.setHours(0,0,0,0); const k=d.getTime(); byDay.set(k,(byDay.get(k)||0)+1); total++; }));
+  if (!total) { heatEl.innerHTML='<div class="stats-empty">No solves yet.</div>'; subEl.textContent=''; return; }
+  const DAY=86400000, today=new Date(); today.setHours(0,0,0,0); const todayT=today.getTime();
+  const mondayOf=t=>{ const d=new Date(t); d.setHours(0,0,0,0); const dow=(d.getDay()+6)%7; d.setDate(d.getDate()-dow); return d.getTime(); };
+  const start=Math.max(mondayOf(Math.min(...byDay.keys())), mondayOf(todayT-52*7*DAY));
+  const cols=Math.round((mondayOf(todayT)-start)/(7*DAY))+1;
+  const cell=12, gap=3, step=cell+gap, padTop=16, padLeft=28, W=padLeft+cols*step, H=padTop+7*step;
+  let cells='', labels='', lastMonth=-1;
+  for (let c=0;c<cols;c++){ const colStart=start+c*7*DAY, m=new Date(colStart).getMonth();
+    if (m!==lastMonth){ lastMonth=m; labels+=`<text class="hc-txt" x="${padLeft+c*step}" y="10">${new Date(colStart).toLocaleDateString([],{month:'short'})}</text>`; }
+    for (let r=0;r<7;r++){ const t=colStart+r*DAY; if (t>todayT) continue;
+      const ct=byDay.get(t)||0, lv=ct===0?0:ct<=2?1:ct<=5?2:ct<=12?3:4;
+      const dl=new Date(t).toLocaleDateString([],{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+      cells+=`<rect class="hc${lv}" x="${padLeft+c*step}" y="${padTop+r*step}" width="${cell}" height="${cell}" rx="2"><title>${dl}: ${ct} solve${ct===1?'':'s'}</title></rect>`; } }
+  ['Mon','Wed','Fri'].forEach((d,i)=>{ labels+=`<text class="hc-txt" x="0" y="${padTop+(i*2)*step+cell-2}">${d}</text>`; });
+  heatEl.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Solves per day heatmap">${labels}${cells}</svg>`;
+  const days=[...byDay.keys()].sort((a,b)=>a-b), daySet=new Set(days);
+  let cur=0, probe=daySet.has(todayT)?todayT:todayT-DAY;      // count today, or through yesterday if nothing logged today yet
+  while (daySet.has(probe)) { cur++; probe-=DAY; }
+  let longest=0, run=0, prev=null;
+  days.forEach(d=>{ run=(prev!=null && d-prev===DAY)?run+1:1; if (run>longest) longest=run; prev=d; });
+  subEl.textContent=`${total} solves over ${days.length} day${days.length===1?'':'s'} · current streak ${cur} · longest ${longest}`;
+}
 function renderStatsView() {
   const sets = statsAllSets();
   const summaryEl=document.getElementById('statsSummary'), eventsEl=document.getElementById('statsEvents'),
@@ -1655,7 +1737,9 @@ function renderStatsView() {
         trendTtl=document.getElementById('statsTrendTitle'), histEl=document.getElementById('statsHistory');
   if (!sets.length) {
     summaryEl.innerHTML='<div class="stats-empty">No solves recorded yet on this profile. Use any Timer or Trainer to start building history.</div>';
-    eventsEl.innerHTML=''; chartEl.innerHTML=''; weeksEl.innerHTML=''; histEl.innerHTML=''; return;
+    eventsEl.innerHTML=''; chartEl.innerHTML=''; weeksEl.innerHTML=''; histEl.innerHTML='';
+    document.getElementById('statsDeep').innerHTML=''; document.getElementById('statsHisto').innerHTML='';
+    statsHeatRender(); return;
   }
   let totalSolves=0, overallBest=null; const allSingles=[];
   sets.forEach(e => { totalSolves+=e.solves.length; e.solves.forEach(s=>{ const v=effMs(s); if(v!==null) allSingles.push(v); }); });
@@ -1684,6 +1768,9 @@ function renderStatsView() {
   const GL = { solve:'by solve', hour:'by hour', day:'by day', week:'by week', month:'by month' }[g];
   trendTtl.textContent='Improvement over time — '+statsLabel(sel.id)+' ('+GL+')';
   chartEl.innerHTML=statsChartSVG(weeks, g); weeksEl.innerHTML = g==='solve' ? '' : statsBucketTable(weeks, g);
+  statsDeepPanel(sel);
+  document.getElementById('statsHisto').innerHTML = statsHistoSVG(sel.solves);
+  statsHeatRender();
   const flat=[]; sets.forEach(e => { const lbl=statsLabel(e.id); e.solves.forEach(s=>flat.push({s,lbl})); });
   flat.sort((a,b)=>b.s.t-a.s.t);
   let hrows='';

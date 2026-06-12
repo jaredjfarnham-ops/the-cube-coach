@@ -596,3 +596,32 @@
 .stats-gran select { background: var(--panel); color: var(--text); border: 1px solid #2a3160; border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 500; }
 [data-theme="light"] .stats-gran select { border-color: #d6dcec; }
 .stats-weeks { max-height: 300px; overflow-y: auto; margin-top: 6px; }
+
+/* deep per-event averages + distribution histogram (#2) */
+.stats-sub { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.stats-gran input { background: var(--panel); color: var(--text); border: 1px solid #2a3160; border-radius: 8px; padding: 4px 6px; font: inherit; font-size: 12px; width: 64px; }
+[data-theme="light"] .stats-gran input { border-color: #d6dcec; }
+.stats-deep { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.deep-card { background: var(--panel); border: 1px solid #2a3160; border-radius: 12px; padding: 10px 12px; }
+.deep-card .dc-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); }
+.deep-card .dc-val { font-size: 19px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; margin-top: 3px; }
+.deep-card .dc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.deep-card .dc-val.dnf { color: #ff6b6b; }
+[data-theme="light"] .deep-card { border-color: #d6dcec; }
+.stats-histo { background: var(--panel); border: 1px solid #2a3160; border-radius: 14px; padding: 14px 16px; }
+.stats-histo svg { width: 100%; height: auto; display: block; }
+[data-theme="light"] .stats-histo { border-color: #d6dcec; }
+.hb-bar { fill: var(--accent); opacity: .8; }
+.hb-bar.slow { fill: var(--muted); opacity: .45; }
+
+/* practice heatmap (#3) */
+.stats-heat { background: var(--panel); border: 1px solid #2a3160; border-radius: 14px; padding: 14px 16px; overflow-x: auto; }
+.stats-heat svg { display: block; }
+[data-theme="light"] .stats-heat { border-color: #d6dcec; }
+.hc0 { fill: #2a3160; }
+.hc1 { fill: var(--accent); opacity: .35; }
+.hc2 { fill: var(--accent); opacity: .58; }
+.hc3 { fill: var(--accent); opacity: .8; }
+.hc4 { fill: var(--accent-2); }
+[data-theme="light"] .hc0 { fill: #e6eaf4; }
+.hc-txt { fill: var(--muted); font-size: 9px; font-family: inherit; }

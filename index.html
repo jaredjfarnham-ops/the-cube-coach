@@ -190,6 +190,10 @@
         <p id="statsHint">A historical view of every solve you've recorded on this profile, across all events — with improvement-over-time analysis.</p>
       </div>
       <div class="stats-summary" id="statsSummary"></div>
+      <div class="stats-section" id="statsHeatSection">
+        <h3>Practice heatmap <span class="stats-sub" id="statsHeatSub"></span></h3>
+        <div class="stats-heat" id="statsHeat"></div>
+      </div>
       <div class="stats-section">
         <h3>Per-event</h3>
         <div class="stats-events" id="statsEvents"></div>
@@ -209,6 +213,16 @@
         </div>
         <div class="stats-chart" id="statsChart"></div>
         <div class="stats-weeks" id="statsWeeks"></div>
+      </div>
+      <div class="stats-section" id="statsDeepSection">
+        <div class="stats-trend-head">
+          <h3 id="statsDeepTitle">Averages &amp; distribution</h3>
+          <label class="stats-gran">Sub-X target
+            <input id="statsSubX" type="number" min="1" step="0.5" inputmode="decimal"> s
+          </label>
+        </div>
+        <div class="stats-deep" id="statsDeep"></div>
+        <div class="stats-histo" id="statsHisto"></div>
       </div>
       <div class="stats-section">
         <h3>All solves</h3>
