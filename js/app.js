@@ -1626,6 +1626,11 @@ const PLAY_PUZZLES = [
   { id:'mpyra', name:'Master Pyraminx', kind:'twisty', tw:'master_tetraminx', scr:'master_tetraminx' },
   { id:'giga', name:'Gigaminx', kind:'twisty', tw:'gigaminx', scr:null },     // no cubing scramble — drag to mix
   { id:'redi', name:'Redi Cube', kind:'twisty', tw:'redi_cube', scr:null },
+  // puzzle-geometry models (rendered by name; no cubing scramble — drag to mix)
+  { id:'masterskewb', name:'Master Skewb', kind:'twisty', twName:'master skewb', scr:null },
+  { id:'profpyra', name:"Professor's Pyraminx", kind:'twisty', twName:'professor pyraminx', scr:null },
+  { id:'royalpyra', name:'Royal Pyraminx', kind:'twisty', twName:'royal pyraminx', scr:null },
+  { id:'tera', name:'Teraminx', kind:'twisty', twName:'teraminx', scr:null },
 ];
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
@@ -1649,7 +1654,13 @@ function playSelect(entry) {
     playControls.setInteract({});
     document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag the puzzle</b> to rotate the view, and <b>drag a sticker</b> to turn it.'
       + (entry.scr ? ' Use <b>Scramble</b> to shuffle.' : ' (No auto-scramble for this one yet — drag to mix it up.)');
-    playSimEl.innerHTML = `<twisty-player puzzle="${entry.tw}" background="none" control-panel="none" hint-facelets="none" tempo-scale="5" style="width:100%;max-width:360px;height:340px;margin:0 auto;display:block"></twisty-player>`;
+    const tp = document.createElement('twisty-player');
+    tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
+    tp.style.cssText = 'width:100%;max-width:360px;height:340px;margin:0 auto;display:block';
+    if (entry.tw) tp.setAttribute('puzzle', entry.tw);                         // cubing registry puzzle
+    else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
+    else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
+    playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
     playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
     return;
   }
