@@ -949,20 +949,62 @@ function updateStatusPill() {
   trStatusEl.textContent = STATUS_LABEL[s]; trStatusEl.style.background = STATUS_BG[s];
   trStatusEl.style.color = s===0 ? '#cfd6f5' : '#06122e';
 }
+/* ---- WCA scrambles via the vendored cubing.js (offline, ./vendor/cubing). Full solves get official
+   random-state scrambles; case trainers keep their own case generators. Async: shows "scrambling…"
+   then fills in, with a graceful fallback to the local generator if cubing.js isn't loaded yet. ---- */
+const WCA_EVENT = { '3x3':'333','2x2':'222','4x4':'444','5x5':'555','6x6':'666','7x7':'777',
+  'oh':'333oh','3bld':'333bf','4bld':'444bf','5bld':'555bf','fmc':'333fm',
+  'pyra':'pyram','mega':'minx','skewb':'skewb','sq1':'sq1','clock':'clock' };
+/* WCA Clock notation (U3- R5+ … y2 …) → this sim's pin/turn tokens; front moves until y2, then back. */
+const _CLK_F = {U:['UL,UR','UL'],R:['UR,DR','UR'],D:['DL,DR','DL'],L:['UL,DL','UL'],ALL:['UL,UR,DL,DR','UL'],UL:['UL','UL'],UR:['UR','UR'],DL:['DL','DL'],DR:['DR','DR']};
+const _CLK_B = {U:['DL,DR','UL'],R:['UR,DR','UR'],D:['UL,UR','DL'],L:['UL,DL','UL'],ALL:['','UL']};
+function wcaClockToSim(str) {
+  const out = []; let side = 'F';
+  for (const tok of String(str).trim().split(/\s+/)) {
+    if (tok === 'y2') { side = 'B'; continue; }
+    const m = tok.match(/^(UR|DR|DL|UL|ALL|U|R|D|L)(\d+)([+-])$/); if (!m) continue;
+    const h = (m[3]==='-'?-1:1)*(+m[2]), map = (side==='F'?_CLK_F:_CLK_B)[m[1]]; if (!map) continue;
+    out.push('('+map[0]+')'); if (h) out.push(`${side}:${map[1]}:${h}`);
+  }
+  return out;
+}
+/* a WCA scramble STRING → the token array each display engine expects */
+function scrambleToTokens(puzzle, str) {
+  if (puzzle === 'sq1') return String(str).match(/\([^)]*\)|\//g) || [];   // (a, b) tuples + slashes
+  if (isRenderable(puzzle)) return tokenize(str);                          // NxN cubes
+  return String(str).trim().split(/\s+/);                                 // clock / pyra / mega / skewb notation tokens
+}
+/* drive the on-screen SVG sim from trScramble (clock needs WCA→pin/turn; old saved tokens pass through) */
+function setSimScramble() {
+  if (trPuzzle === 'clock') { const t = trScramble, isWca = t.some(x => /^(UR|DR|DL|UL|ALL|U|R|D|L)\d/.test(x) || x === 'y2');
+    clockSim.setTokens(isWca ? wcaClockToSim(t.join(' ')) : t); }
+  else SIM[trPuzzle].setTokens(trScramble);
+}
+function applyScrambleDisplay() {
+  if (isRenderable(trPuzzle)) { tcube.reset(); tcube.applyInstant(trScramble); }   // shaped puzzles have no 3-D renderer
+  else if (SIM[trPuzzle]) { setSimScramble(); trainerSimEl.innerHTML = SIM[trPuzzle].svg(); }
+  trScrambleEl.textContent = showMoves(trScramble);
+  trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
+}
+let scrambleSeq = 0;                                  // guards async scrambles against rapid "new scramble" clicks
 function newScramble() {
-  if (trMode==='solve') {
-    trCur = null; trScramble = fullScramble(trPuzzle);
-  } else {
+  if (trMode !== 'solve') {                           // case trainers: local case generator + diagram
     trCur = pickCase(); trScramble = caseScramble(trCur.moves);
     trDiagram.innerHTML = (trKind==='oll'||trKind==='pll')        // F2L etc. have no last-layer diagram → solve on the cube
       ? diagramFor(trKind, trScramble)
       : '<div class="dia-note">Solve the case<br>on the cube →</div>';
-    updateStatusPill();
+    updateStatusPill(); applyScrambleDisplay(); return;
   }
-  if (isRenderable(trPuzzle)) { tcube.reset(); tcube.applyInstant(trScramble); }   // shaped puzzles have no 3-D renderer
-  else if (SIM[trPuzzle]) trainerSimEl.innerHTML = SIM[trPuzzle].svg();            // Square-1 / Clock: draw the scrambled state
-  trScrambleEl.textContent = showMoves(trScramble);
-  trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
+  trCur = null;
+  const ev = WCA_EVENT[trPuzzle], seq = ++scrambleSeq;
+  if (ev && typeof window.wcaScramble === 'function') {            // official WCA random-state scramble (async)
+    trScrambleEl.textContent = 'scrambling…';
+    window.wcaScramble(ev)
+      .then(str => { if (seq===scrambleSeq) { trScramble = scrambleToTokens(trPuzzle, str); applyScrambleDisplay(); } })
+      .catch(() => { if (seq===scrambleSeq) { trScramble = fullScramble(trPuzzle); applyScrambleDisplay(); } });
+    return;
+  }
+  trScramble = fullScramble(trPuzzle); applyScrambleDisplay();     // fallback when cubing.js isn't ready
 }
 /* the current scramble as a re-applicable string (for saving with a solve) */
 const curScramble = () => Array.isArray(trScramble) ? trScramble.join(' ') : (trScramble ? String(trScramble) : '');
@@ -971,12 +1013,9 @@ function retryScramble(scr) {
   if (!scr) return;
   trState = 'idle'; cancelAnimationFrame(trRAF); trTimerEl.classList.remove('armed','inspecting'); trTimerEl.textContent = trCount ? '—' : '0.00';
   trCur = null;                                   // a fixed scramble, not a generated case
-  trScramble = tokenize(scr);
+  trScramble = scrambleToTokens(trPuzzle, scr);
   if (trMode !== 'solve') trDiagram.innerHTML = (trKind==='oll'||trKind==='pll') ? diagramFor(trKind, trScramble) : '<div class="dia-note">Solve the case<br>on the cube →</div>';
-  if (isRenderable(trPuzzle)) { tcube.reset(); tcube.applyInstant(trScramble); }
-  else if (SIM[trPuzzle]) { SIM[trPuzzle].setTokens(trScramble); trainerSimEl.innerHTML = SIM[trPuzzle].svg(); }
-  trScrambleEl.textContent = showMoves(trScramble);
-  trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
+  applyScrambleDisplay();
   trScrambleEl.classList.remove('flash'); void trScrambleEl.offsetWidth; trScrambleEl.classList.add('flash');   // brief cue
   trScrambleEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }

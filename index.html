@@ -6,6 +6,13 @@
 <title>The Cube Coach</title>
 <link rel="stylesheet" href="assets/icons/cubing-icons.css">
 <link rel="stylesheet" href="css/styles.css">
+<!-- cubing.js (vendored offline, ./vendor/cubing) — WCA random-state scrambles for every event -->
+<script type="module">
+  import { randomScrambleForEvent } from './vendor/cubing/scramble/index.js';
+  window.wcaScramble = (ev) => randomScrambleForEvent(ev).then(a => a.toString());
+  window.wcaReady = true;
+  window.dispatchEvent(new Event('wca-ready'));
+</script>
 </head>
 <body>
   <header>
