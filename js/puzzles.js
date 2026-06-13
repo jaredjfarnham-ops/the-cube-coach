@@ -369,15 +369,29 @@ function makeClock() {
     });
   }
   const setTokens = t => { reset(); applyTokens(t); };
+  /* Uniform scramble = the standard clock basis: 9 front moves + 5 back moves, each a UNIFORM
+     random amount over Z/12. These 14 moves are independent and span all 14 of the clock's degrees
+     of freedom, so every reachable state is equally likely. (The old generator did 9 random-pin
+     random-corner turns, which under-mixes — adjacent dials came out equal far too often.)
+     Each move = set its pin pattern (the engaged group), then turn one of its corner wheels. */
+  const MOVES = [                                           // [tokenSide, pinsUp[], operatedCorner]
+    ['F', ['UL'],                'UL'], ['F', ['UR'],            'UR'],
+    ['F', ['DL'],                'DL'], ['F', ['DR'],            'DR'],
+    ['F', ['UL','UR'],           'UL'], ['F', ['DL','DR'],       'DL'],   // U / D bands
+    ['F', ['UL','DL'],           'UL'], ['F', ['UR','DR'],       'UR'],   // L / R bands
+    ['F', ['UL','UR','DL','DR'], 'UL'],                                   // ALL (front)
+    // back moves: the band's pins are DOWN (so they engage the back), the rest UP; operate from the back
+    ['B', ['DL','DR'],           'UL'], ['B', ['UR','DR'],       'UR'],   // back U / R
+    ['B', ['UL','UR'],           'DL'], ['B', ['UL','DL'],       'UL'],   // back D / L
+    ['B', [],                    'UL'],                                   // back ALL (all pins down)
+  ];
   function scramble() {                                     // built from real turns → always solvable & self-consistent
     reset(); const seq = [];
-    for (let n = 0; n < 9; n++) {
-      const up = PK.filter(() => Math.random() < 0.5);
+    const rndH = () => { const v = Math.floor(Math.random()*12); return v > 6 ? v - 12 : v; };   // uniform Z/12 → -5..6
+    MOVES.forEach(([sd, up, ck]) => {
       seq.push('(' + up.join(',') + ')'); PK.forEach(k => pins[k] = up.includes(k) ? 1 : 0);
-      const side = Math.random() < 0.5 ? 'F' : 'B', ck = PK[Math.floor(Math.random()*4)];
-      const mag = 1 + Math.floor(Math.random()*6), h = Math.random() < 0.5 ? mag : -mag;
-      seq.push(`${side}:${ck}:${h}`); turn(side==='B'?'back':'front', ck, h);
-    }
+      const h = rndH(); if (h) { seq.push(`${sd}:${ck}:${h}`); turn(sd==='B'?'back':'front', ck, h); }
+    });
     const up = PK.filter(() => Math.random() < 0.5);        // final pin pattern (display only)
     seq.push('(' + up.join(',') + ')'); PK.forEach(k => pins[k] = up.includes(k) ? 1 : 0);
     if (isSolved()) return scramble();
