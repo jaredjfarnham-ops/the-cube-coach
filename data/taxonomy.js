@@ -142,47 +142,55 @@ const PUZZLES = [
       { id:'timer', name:'Timer', blurb:'Full-solve timer with app-defined CTO scrambles; times saved to your profile.', items:[ {id:'solve',name:'CTO Timer'} ]},
     ]},
   // ---- Minx family (dodecahedra) ----
-  { id:'kilo', name:'Kilominx', art:'minx', fam:'Minx family', methods:[
+  { id:'kilo', name:'2×2 (Kilominx)', art:'minx', fam:'Minx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'The corners-only Megaminx (dodecahedral 2×2).', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with official Kilominx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Kilominx Timer'} ]},
     ]},
-  { id:'masterkilo', name:'Master Kilominx', art:'minx', fam:'Minx family', methods:[
+  { id:'masterkilo', name:'4×4 (Master Kilominx)', art:'minx', fam:'Minx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'4-layer corners-only minx — solved by reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Master Kilominx Timer'} ]},
     ]},
-  { id:'giga', name:'Gigaminx', art:'minx', fam:'Minx family', methods:[
+  { id:'giga', name:'5×5 (Gigaminx)', art:'minx', fam:'Minx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'The 5-layer Megaminx — reduction to a Megaminx.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Gigaminx Timer'} ]},
     ]},
-  { id:'elitekilo', name:'Elite Kilominx', art:'minx', fam:'Minx family', methods:[
+  { id:'elitekilo', name:'6×6 (Elite Kilominx)', art:'minx', fam:'Minx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'6-layer corners-only minx — reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Elite Kilominx Timer'} ]},
     ]},
-  { id:'tera', name:'Teraminx', art:'minx', fam:'Minx family', methods:[
+  { id:'tera', name:'7×7 (Teraminx)', art:'minx', fam:'Minx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'The 7-layer Megaminx — reduction to a Megaminx.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Teraminx Timer'} ]},
     ]},
   // ---- Pyraminx family (tetrahedra) ----
-  { id:'mpyra', name:'Master Pyraminx', art:'pyram', fam:'Pyraminx family', methods:[
+  { id:'pyramorphix', name:'2×2 (Pyramorphix)', art:'pyram', fam:'Pyraminx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'A tetrahedral 2×2 shape-mod — the "2-layer pyraminx".', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer (2×2 scrambles); times saved to your profile.', items:[ {id:'solve',name:'Pyramorphix Timer'} ]},
+    ]},
+  { id:'mpyra', name:'4×4 (Master Pyraminx)', art:'pyram', fam:'Pyraminx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'4-layer Pyraminx with inner-slice turns.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with official Master Pyraminx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Master Pyraminx Timer'} ]},
     ]},
-  { id:'profpyra', name:"Professor's Pyraminx", art:'pyram', fam:'Pyraminx family', methods:[
+  { id:'profpyra', name:"5×5 (Professor's Pyraminx)", art:'pyram', fam:'Pyraminx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'5-layer Pyraminx — reduction to a Pyraminx.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:"Professor's Pyraminx Timer"} ]},
     ]},
-  { id:'royalpyra', name:'Royal Pyraminx', art:'pyram', fam:'Pyraminx family', methods:[
+  { id:'royalpyra', name:'6×6 (Royal Pyraminx)', art:'pyram', fam:'Pyraminx family', methods:[
       { id:'learn', name:'Tutorial', blurb:'6-layer Pyraminx — reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Royal Pyraminx Timer'} ]},
     ]},
   // ---- Skewb family (deeper-cut corner-turners; standard series tops out at Elite) ----
-  { id:'masterskewb', name:'Master Skewb', art:'skewb', fam:'Skewb family', methods:[
+  { id:'masterskewb', name:'3×3 (Master Skewb)', art:'skewb', fam:'Skewb family', methods:[
       { id:'learn', name:'Tutorial', blurb:'A 2-cut (order-3) Skewb.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Master Skewb Timer'} ]},
     ]},
-  { id:'eliteskewb', name:'Elite Skewb', art:'skewb', fam:'Skewb family', methods:[
+  { id:'eliteskewb', name:'4×4 (Elite Skewb)', art:'skewb', fam:'Skewb family', methods:[
       { id:'learn', name:'Tutorial', blurb:'A 3-cut (order-4) Skewb — the deepest standard skewb.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Elite Skewb Timer'} ]},
+    ]},
+  { id:'skewb7', name:'7×7 (Skewb)', art:'skewb', fam:'Skewb family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'The DaYan 7-layer cubic Skewb — deep-cut reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'7×7 Skewb Timer'} ]},
     ]},
   // ---- Other ----
   { id:'redi', name:'Redi Cube', art:'skewb', fam:'Other', methods:[

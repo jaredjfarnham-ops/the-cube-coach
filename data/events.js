@@ -632,4 +632,23 @@
     '<ol><li><b>Orient the four first-layer (white) corners.</b></li><li><b>Insert the four first-layer edges.</b></li><li><b>Orient the remaining four top corners.</b></li><li><b>Solve the four middle-layer edges.</b></li><li><b>Permute the last-layer edges</b> with a couple of short edge-cycle algorithms.</li></ol>',
     'Source: speedsolving wiki / ruwix / jonchammer.com (they agree closely).' ]};
   LESSONS['redi/timer/solve'] = nwTimer('redi','Redi Cube Timer', APPDEF);
+
+  // ---- Pyramorphix (tetrahedral 2x2) ----
+  LESSONS['pyramorphix/learn/about'] = { type:'text', title:'Pyramorphix — Overview', intro:[
+    'The <b>Pyramorphix</b> is a tetrahedron-shaped <b>2×2</b> — the “2-layer pyraminx”. Despite the pyramid shape it turns like a 2×2 (its layers cut through the middle), and it <b>shape-shifts</b> as you turn.',
+    'It uses standard <b>2×2 notation</b> (<b>R U F</b> with <b>′</b> / <b>2</b>). '+OFFICIAL+' (the 2×2 scrambler).' ]};
+  LESSONS['pyramorphix/learn/method'] = { type:'text', title:'Pyramorphix — Solving Method', intro:[
+    'Solve it as a 2×2, then fix the flippable face pieces:',
+    '<ol><li><b>Solve it like a 2×2</b> — place the four large (corner) pieces so the puzzle returns to a solid tetrahedron with matching colours.</li><li><b>Orient the face pieces</b> — the four small triangular pieces can sit flipped; a short 2×2-style sequence rotates them into place.</li></ol>',
+    'Because it’s mechanically a 2×2, any 2×2 method (Ortega / CLL) works once you account for the flippable face pieces.' ]};
+  LESSONS['pyramorphix/timer/solve'] = nwTimer('pyramorphix','Pyramorphix Timer', OFFICIAL+' (the 2×2 scrambler).');
+
+  // ---- 7×7 Skewb (DaYan) ----
+  LESSONS['skewb7/learn/about'] = { type:'text', title:'7×7 Skewb — Overview', intro:[
+    'The <b>DaYan 7×7 Skewb</b> is a deep-cut corner-turning cube with 7 layers of diagonal cuts — by far the largest cubic skewb in production (a specialty/pre-order puzzle).',
+    'Notation uses the Skewb corner twists <b>R L U B</b> with wide/inner-cut turns for the deeper layers. '+APPDEF ]};
+  LESSONS['skewb7/learn/method'] = { type:'text', title:'7×7 Skewb — Solving Method', intro:[
+    'The general approach is <b>reduction</b>: group the many inner pieces (centres, ribs, inner edges) so the puzzle behaves like a standard Skewb, then finish with normal Skewb technique.',
+    '<b>Note:</b> there is no established written step-by-step for a 7-layer skewb — this is an inferred outline. Follow a video tutorial for the exact algorithms before relying on it.' ]};
+  LESSONS['skewb7/timer/solve'] = nwTimer('skewb7','7×7 Skewb Timer', APPDEF);
 })();

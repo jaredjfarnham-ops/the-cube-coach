@@ -947,7 +947,7 @@ const SHAPED_SCRAMBLE = { pyra:()=>pyraSim.scramble(), skewb:()=>skewbSim.scramb
                           cto:()=>ctoScramble(), redi:()=>rediScramble(),
                           masterkilo:()=>minxScrambleN(4), giga:()=>minxScrambleN(5), elitekilo:()=>minxScrambleN(6), tera:()=>minxScrambleN(7),
                           profpyra:()=>pyraScrambleN(5), royalpyra:()=>pyraScrambleN(6),
-                          masterskewb:()=>skewbScrambleN(3), eliteskewb:()=>skewbScrambleN(4) };
+                          masterskewb:()=>skewbScrambleN(3), eliteskewb:()=>skewbScrambleN(4), skewb7:()=>skewbScrambleN(7) };
 
 function fullScramble(puzzle) {                    // whole-solve scramble in WCA format (proper move set, restriction & length)
   if (SHAPED_SCRAMBLE[puzzle]) return SHAPED_SCRAMBLE[puzzle]();
@@ -996,7 +996,8 @@ function updateStatusPill() {
 const WCA_EVENT = { '3x3':'333','2x2':'222','4x4':'444','5x5':'555','6x6':'666','7x7':'777',
   'oh':'333oh','3bld':'333bf','4bld':'444bf','5bld':'555bf','fmc':'333fm',
   'pyra':'pyram','skewb':'skewb','sq1':'sq1','clock':'clock',
-  'fto':'fto','mpyra':'master_tetraminx','kilo':'kilominx' };
+  'fto':'fto','mpyra':'master_tetraminx','kilo':'kilominx',
+  'pyramorphix':'222' };   // Pyramorphix is a 2×2 mechanism → official 2×2 scrambles
   // NB: Megaminx is intentionally absent — its SVG sim can't render WCA "R++/D--" notation, so it
   // falls back to its own (renderable) scramble generator. Re-add once a notation adapter exists.
 /* WCA Clock notation (U3- R5+ … y2 …) → this sim's pin/turn tokens; front moves until y2, then back. */
@@ -1356,9 +1357,39 @@ const EVENT = {
   'kilo':'minx', 'masterkilo':'minx', 'giga':'minx', 'elitekilo':'minx', 'tera':'minx',
   'masterskewb':'skewb', 'eliteskewb':'skewb', 'redi':'333',
 };
-function cubeArt(p) {
-  return `<span class="cubing-icon event-${EVENT[p.id] || '333'} art-icon"></span>`;
-}
+/* Custom inline-SVG icons for non-WCA puzzles (the icon font only ships WCA glyphs). Shape reflects
+   the puzzle family; internal lines hint at size/order. */
+const NW_ICON = (() => {
+  const O='<svg viewBox="0 0 24 24" class="puz-svg" aria-hidden="true">', C='</svg>';
+  const ln=(a,b,c,d)=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`;
+  const PENT=[[12,3],[20.6,9.2],[17.3,19.3],[6.7,19.3],[3.4,9.2]];
+  function minx(layers){ let g=`<polygon class="pz-face" points="${PENT.map(p=>p.join(',')).join(' ')}"/>`;
+    PENT.forEach(p=>g+=ln(12,12,p[0],p[1]));
+    const rings = layers<=2?0 : layers<=4?1 : 2;
+    for(let i=1;i<=rings;i++){ const s=1-i*0.30; g+=`<polygon points="${PENT.map(p=>(12+(p[0]-12)*s).toFixed(1)+','+(12+(p[1]-12)*s).toFixed(1)).join(' ')}"/>`; }
+    return O+g+C; }
+  function pyra(layers){ let g='<polygon class="pz-face" points="12,3.5 3.5,20 20.5,20"/>';
+    for(let r=1;r<layers;r++){ const t=r/layers, lx=12+(3.5-12)*t, rx=12+(20.5-12)*t, y=3.5+(20-3.5)*t; g+=ln(lx.toFixed(1),y.toFixed(1),rx.toFixed(1),y.toFixed(1)); }
+    return O+g+C; }
+  function skewb(layers){ let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>'+ln(4,4,20,20)+ln(20,4,4,20);
+    if(layers>=4) g+='<rect x="8.5" y="8.5" width="7" height="7"/>';
+    if(layers>=6) g+=ln(12,4,12,20)+ln(4,12,20,12);
+    return O+g+C; }
+  function redi(){ let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>';
+    [[4,4,8,4,4,8],[20,4,16,4,20,8],[4,20,8,20,4,16],[20,20,16,20,20,16]].forEach(c=>g+=`<polygon class="pz-dot" points="${c[0]},${c[1]} ${c[2]},${c[3]} ${c[4]},${c[5]}"/>`);
+    return O+g+C; }
+  function octa(corner){ let g='<polygon class="pz-face" points="12,2 22,12 12,22 2,12"/>'+ln(2,12,22,12)+ln(12,2,12,22);
+    if(corner) [[12,2],[22,12],[12,22],[2,12]].forEach(p=>g+=`<circle class="pz-dot" cx="${p[0]}" cy="${p[1]}" r="1.6"/>`);
+    return O+g+C; }
+  const map={ fto:()=>octa(false), cto:()=>octa(true), redi:()=>redi(),
+    kilo:()=>minx(2), masterkilo:()=>minx(4), giga:()=>minx(5), elitekilo:()=>minx(6), tera:()=>minx(7),
+    mpyra:()=>pyra(4), profpyra:()=>pyra(5), royalpyra:()=>pyra(6), pyramorphix:()=>pyra(2),
+    masterskewb:()=>skewb(3), eliteskewb:()=>skewb(4), skewb7:()=>skewb(7) };
+  return id => map[id] ? map[id]() : null;
+})();
+function iconHTML(id, cls) { const ic = NW_ICON(id);
+  return ic ? `<span class="puz-icon ${cls||''}">${ic}</span>` : `<span class="cubing-icon event-${EVENT[id]||'333'} ${cls||''}"></span>`; }
+function cubeArt(p) { return iconHTML(p.id, 'art-icon'); }
 // Official WCA event order (matches the WCA site's event filter): cubes, then 3×3 variations, then the shaped puzzles, then big-BLD & MBLD.
 const WCA_ORDER = ['3x3','2x2','4x4','5x5','6x6','7x7','3bld','fmc','oh','clock','mega','pyra','skewb','sq1','4bld','5bld','mbld'];
 const wcaRank = id => { const i = WCA_ORDER.indexOf(id); return i<0 ? 99 : i; };
@@ -1396,7 +1427,7 @@ const CATEGORIES = [
   { id:'nxn',    name:'Cubes',         puzzles:['2x2','3x3','4x4','5x5','6x6','7x7'] },
   { id:'var',    name:'Challenges',    puzzles:['oh','3bld','fmc','mbld','4bld','5bld'] },
   { id:'shaped', name:'Other Puzzles', puzzles:['pyra','mega','skewb','sq1','clock'] },
-  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','cto','kilo','masterkilo','giga','elitekilo','tera','mpyra','profpyra','royalpyra','masterskewb','eliteskewb','redi'] },
+  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','cto','kilo','masterkilo','giga','elitekilo','tera','pyramorphix','mpyra','profpyra','royalpyra','masterskewb','eliteskewb','skewb7','redi'] },
 ];
 const catOf = pid => CATEGORIES.find(c => c.puzzles.includes(pid));
 const NONWCA = new Set((CATEGORIES.find(c => c.id==='nonwca') || { puzzles:[] }).puzzles);   // kept off the home page; menu tab sits after Stats
@@ -1462,7 +1493,7 @@ function openCategory(catId, wantPz) {
     if (p.fam && p.fam !== lastFam) { lastFam = p.fam;              // SpeedCubeShop-style family headers (Non-WCA submenu)
       const h = document.createElement('div'); h.className='cat-fam-head'; h.textContent = p.fam; left.appendChild(h); }
     const b = document.createElement('button'); b.className='cat-pz'+(pid===activePz?' active':''); b.dataset.pz=pid;
-    b.innerHTML = `<span class="cubing-icon event-${EVENT[pid]||'333'}"></span><span>${shortName(p.name)}</span>`;
+    b.innerHTML = `${iconHTML(pid,'')}<span>${shortName(p.name)}</span>`;
     const activate = () => { left.querySelectorAll('.cat-pz').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderMethods(right, pid); };
     b.addEventListener('mouseenter', activate);
     b.addEventListener('click', activate);

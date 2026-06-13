@@ -59,6 +59,15 @@
   .cat-puzzles { max-height: 72vh; overflow-y: auto; }                 /* long Non-WCA family list */
   .cat-fam-head { font-size: 10px; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); font-weight: 700; padding: 10px 10px 3px; }
   .cat-fam-head:first-child { padding-top: 2px; }
+  /* custom non-WCA puzzle icons (inline SVG) */
+  .puz-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+  .puz-svg { width: 1em; height: 1em; display: block; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+  .puz-svg .pz-face { fill: color-mix(in srgb, currentColor 14%, transparent); }
+  .puz-svg .pz-dot { fill: currentColor; stroke: none; }
+  .art-icon.puz-icon { font-size: 58px; color: var(--text); }
+  .home-card:hover .art-icon.puz-icon { color: var(--accent); }
+  .cat-pz .puz-icon { font-size: 19px; width: 22px; color: var(--muted); }
+  .cat-pz.active .puz-icon { color: var(--accent-2); }
 
   /* ===== Placeholder ===== */
   .placeholder { max-width: 740px; margin: 48px auto; padding: 0 24px; }
