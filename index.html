@@ -6,6 +6,7 @@
 <title>The Cube Coach</title>
 <link rel="stylesheet" href="assets/icons/cubing-icons.css">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="icon" type="image/svg+xml" href="assets/logo-icon.svg">
 <!-- cubing.js (vendored offline, ./vendor/cubing) — WCA random-state scrambles for every event -->
 <script type="module">
   import { randomScrambleForEvent } from './vendor/cubing/scramble/index.js';
@@ -17,10 +18,24 @@
 </head>
 <body>
   <header>
-    <div class="brand">
-      <h1>🧊 The Cube Coach</h1>
-      <p>Learn every WCA puzzle — tutorials, algorithm sheets, and trainers.</p>
-    </div>
+    <a class="brand" href="#" onclick="goHome();return false;" title="The Cube Coach — home" aria-label="The Cube Coach — home">
+      <span class="logo-icon"><svg viewBox="0 0 56 58" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="30" cy="33" r="25" fill="none" stroke="var(--logo-ink)" stroke-width="3.4"/>
+        <rect x="25.5" y="2.5" width="9" height="5.5" rx="2.2" fill="var(--logo-ink)"/>
+        <rect x="30" y="6" width="4" height="4" fill="var(--logo-ink)"/>
+        <rect x="44.5" y="7" width="6.5" height="4" rx="2" fill="var(--logo-ink)" transform="rotate(40 47 9)"/>
+        <line x1="30" y1="33" x2="30" y2="20" stroke="var(--logo-ink)" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="30" y1="33" x2="40" y2="28" stroke="var(--logo-ink)" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="30" cy="33" r="1.8" fill="var(--logo-ink)"/>
+        <g><polygon points="15.0,27.0 22.5,22.5 30.0,27.0 22.5,31.5" fill="#5cb1e8" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="22.5,22.5 30.0,18.0 37.5,22.5 30.0,27.0" fill="#2e8bd0" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="22.5,31.5 30.0,27.0 37.5,31.5 30.0,36.0" fill="#2e8bd0" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="30.0,27.0 37.5,22.5 45.0,27.0 37.5,31.5" fill="#3ad1bf" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="15.0,27.0 22.5,31.5 22.5,39.5 15.0,35.0" fill="#3ad1bf" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="22.5,31.5 30.0,36.0 30.0,44.0 22.5,39.5" fill="#16b8a6" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="15.0,35.0 22.5,39.5 22.5,47.5 15.0,43.0" fill="#16b8a6" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="22.5,39.5 30.0,44.0 30.0,52.0 22.5,47.5" fill="#3ad1bf" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="45.0,27.0 37.5,31.5 37.5,39.5 45.0,35.0" fill="#2b4a63" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="37.5,31.5 30.0,36.0 30.0,44.0 37.5,39.5" fill="#1f3346" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="45.0,35.0 37.5,39.5 37.5,47.5 45.0,43.0" fill="#1f3346" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/><polygon points="37.5,39.5 30.0,44.0 30.0,52.0 37.5,47.5" fill="#2b4a63" stroke="#0e1b27" stroke-width="0.6" stroke-linejoin="round"/></g>
+        <rect x="5" y="48" width="4" height="6" rx="1" fill="#16b8a6"/>
+        <rect x="10.5" y="44" width="4" height="10" rx="1" fill="#16b8a6"/>
+        <rect x="16" y="39" width="4" height="15" rx="1" fill="#16b8a6"/>
+        <path d="M6 50 L18 40 L26 46 L40 33" fill="none" stroke="#2e8bd0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M33 31 L41 31.5 L39.5 39 Z" fill="#2e8bd0"/>
+      </svg></span>
+      <span class="wordmark"><span class="wm-the">The</span><span class="wm-cube">Cube</span><span class="wm-coach">Coach</span></span>
+    </a>
     <div class="header-actions">
       <div class="user-menu" id="userMenu">
         <button class="user-btn" id="userBtn"><span class="uava">👤</span><span id="userName">Player 1</span><span class="caret">▾</span></button>
@@ -37,6 +52,7 @@
           <div class="user-note">Profiles &amp; times are saved on this device. A sign-in can sync them across devices later.</div>
         </div>
       </div>
+      <a class="patreon-btn" id="patreonBtn" href="https://www.patreon.com/YOUR_HANDLE" target="_blank" rel="noopener" title="Support The Cube Coach on Patreon">♥ Support</a>
       <button class="theme-toggle" id="solverBtn" title="Solver">🪄</button>
       <button class="theme-toggle" id="prefsBtn" title="Settings">⚙</button>
       <button id="themeToggle" class="theme-toggle" title="Toggle light/dark">🌙</button>

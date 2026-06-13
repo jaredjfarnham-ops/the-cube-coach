@@ -11,6 +11,16 @@
   header { padding: 20px 28px 14px; border-bottom: 1px solid #2a3160; }
   header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing:.3px; }
   header p  { margin: 0; color: var(--muted); font-size: 14px; }
+  /* ===== Logo (top-left) ===== */
+  :root { --logo-ink: #e8ecff; }                  /* structural ink of the logo — light on the dark header */
+  [data-theme="light"] { --logo-ink: #1f3346; }   /* …navy on the light header */
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; cursor: pointer; flex: none; }
+  .logo-icon { display: block; flex: none; }
+  .logo-icon svg { height: 42px; width: auto; display: block; }
+  .wordmark { font-weight: 800; font-size: 24px; letter-spacing: -0.4px; line-height: 1; white-space: nowrap; }
+  .wordmark .wm-the   { color: var(--logo-ink); }
+  .wordmark .wm-cube  { color: #2e8bd0; }
+  .wordmark .wm-coach { background: linear-gradient(90deg, #16b8a6, #3cc98a); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
 
   /* ===== Mega-menu nav ===== */
   .megawrap { position: relative; z-index: 50; background: rgba(0,0,0,.22); border-bottom: 1px solid #2a3160; }
@@ -172,6 +182,8 @@
   header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   .theme-toggle { background: var(--panel); border: 1px solid #313a6b; color: var(--text); width: 42px; height: 42px; border-radius: 11px; cursor: pointer; font-size: 19px; flex: none; }
   .theme-toggle:hover { border-color: var(--accent); }
+  .patreon-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid #313a6b; color: var(--text); height: 42px; padding: 0 14px; border-radius: 11px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; flex: none; }
+  .patreon-btn:hover { border-color: var(--accent); color: var(--accent); }
   .puzzle-tab.home-tab { font-weight: 700; }
 
   /* user / profile menu */
