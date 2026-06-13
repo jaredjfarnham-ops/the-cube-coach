@@ -126,4 +126,18 @@ const PUZZLES = [
       { id:'5bld', name:'5BLD', blurb:'The largest WCA BLD event: + and x centers, wings, midges, 3BLD.', items:[ {id:'centers',name:'Centers'}, {id:'wings',name:'Wings'}, {id:'midges',name:'Midges'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with standard 5×5 scrambles — memo + execution timed together; times saved to your profile.', items:[ {id:'solve',name:'5BLD Timer'} ]},
     ]},
+  // ---- Non-WCA puzzles: official random-state scrambles (via cubing.js) + a full-solve timer.
+  //      No on-screen model yet — you read the scramble and time on your own puzzle. ----
+  { id:'fto', name:'FTO (Face-Turning Octahedron)', art:'pyram', methods:[
+      { id:'intro', name:'Overview', blurb:'An octahedron whose 8 triangular faces each turn.', items:[ {id:'about',name:'About & Notation'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer with official FTO scrambles; times saved to your profile.', items:[ {id:'solve',name:'FTO Timer'} ]},
+    ]},
+  { id:'mpyra', name:'Master Pyraminx', art:'pyram', methods:[
+      { id:'intro', name:'Overview', blurb:'A 4-layer Pyraminx with inner-slice turns.', items:[ {id:'about',name:'About & Notation'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer with official Master Pyraminx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Master Pyraminx Timer'} ]},
+    ]},
+  { id:'kilo', name:'Kilominx', art:'minx', methods:[
+      { id:'intro', name:'Overview', blurb:'A corners-only Megaminx — the dodecahedral 2×2.', items:[ {id:'about',name:'About & Notation'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer with official Kilominx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Kilominx Timer'} ]},
+    ]},
 ];

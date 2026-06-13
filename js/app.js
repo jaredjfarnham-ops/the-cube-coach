@@ -954,7 +954,8 @@ function updateStatusPill() {
    then fills in, with a graceful fallback to the local generator if cubing.js isn't loaded yet. ---- */
 const WCA_EVENT = { '3x3':'333','2x2':'222','4x4':'444','5x5':'555','6x6':'666','7x7':'777',
   'oh':'333oh','3bld':'333bf','4bld':'444bf','5bld':'555bf','fmc':'333fm',
-  'pyra':'pyram','mega':'minx','skewb':'skewb','sq1':'sq1','clock':'clock' };
+  'pyra':'pyram','mega':'minx','skewb':'skewb','sq1':'sq1','clock':'clock',
+  'fto':'fto','mpyra':'master_tetraminx','kilo':'kilominx' };
 /* WCA Clock notation (U3- R5+ … y2 …) → this sim's pin/turn tokens; front moves until y2, then back. */
 const _CLK_F = {U:['UL,UR','UL'],R:['UR,DR','UR'],D:['DL,DR','DL'],L:['UL,DL','UL'],ALL:['UL,UR,DL,DR','UL'],UL:['UL','UL'],UR:['UR','UR'],DL:['DL','DL'],DR:['DR','DR']};
 const _CLK_B = {U:['DL,DR','UL'],R:['UR,DR','UR'],D:['UL,UR','DL'],L:['UL,DL','UL'],ALL:['','UL']};
@@ -1307,6 +1308,7 @@ const EVENT = {
   '3x3':'333', 'oh':'333oh', '2x2':'222', '4x4':'444', '5x5':'555', '6x6':'666', '7x7':'777',
   'pyra':'pyram', 'mega':'minx', 'skewb':'skewb', 'sq1':'sq1', 'clock':'clock',
   '3bld':'333bf', 'fmc':'333fm', 'mbld':'333mbf', '4bld':'444bf', '5bld':'555bf',
+  'fto':'pyram', 'mpyra':'pyram', 'kilo':'minx',   // non-WCA: no dedicated icon — closest shape stand-in
 };
 function cubeArt(p) {
   return `<span class="cubing-icon event-${EVENT[p.id] || '333'} art-icon"></span>`;
@@ -1348,6 +1350,7 @@ const CATEGORIES = [
   { id:'nxn',    name:'Cubes',         puzzles:['2x2','3x3','4x4','5x5','6x6','7x7'] },
   { id:'var',    name:'Challenges',    puzzles:['oh','3bld','fmc','mbld','4bld','5bld'] },
   { id:'shaped', name:'Other Puzzles', puzzles:['pyra','mega','skewb','sq1','clock'] },
+  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','mpyra','kilo'] },
 ];
 const catOf = pid => CATEGORIES.find(c => c.puzzles.includes(pid));
 
