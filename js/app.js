@@ -1626,13 +1626,15 @@ const PLAY_PUZZLES = [
   { id:'mpyra', name:'Master Pyraminx', kind:'twisty', tw:'master_tetraminx', scr:'master_tetraminx' },
   { id:'giga', name:'Gigaminx', kind:'twisty', tw:'gigaminx', scr:null },     // no cubing scramble — drag to mix
   { id:'redi', name:'Redi Cube', kind:'twisty', tw:'redi_cube', scr:null },
-  // puzzle-geometry models (rendered by name; no cubing scramble — drag to mix)
-  { id:'masterskewb', name:'Master Skewb', kind:'twisty', twName:'master skewb', scr:null },
-  { id:'profpyra', name:"Professor's Pyraminx", kind:'twisty', twName:'professor pyraminx', scr:null },
-  { id:'royalpyra', name:'Royal Pyraminx', kind:'twisty', twName:'royal pyraminx', scr:null },
-  { id:'tera', name:'Teraminx', kind:'twisty', twName:'teraminx', scr:null },
-  { id:'cto', name:'CTO', kind:'twisty', twName:"Trajber's octahedron", scr:null },   // corner-turning octahedron
-  { id:'eliteskewb', name:'Elite Skewb', kind:'twisty', twName:'professor skewb', scr:null },   // order-4 skewb (cubing: "professor skewb")
+  // puzzle-geometry models — rendered from a geometry SPEC via experimentalPuzzleDescription.
+  // (experimentalPuzzleName silently falls back to a 3x3; only registry names + geometry specs render.)
+  // Specs derived from cubing puzzle-geometry: shape + cut-type/distance pairs. No cubing scramble — drag to mix.
+  { id:'masterskewb', name:'Master Skewb', kind:'twisty', twDesc:'c v 0.275', scr:null },
+  { id:'profpyra', name:"Professor's Pyraminx", kind:'twisty', twDesc:'t v -0.2 v 0.6 v 1.4 v 2.2', scr:null },
+  { id:'royalpyra', name:'Royal Pyraminx', kind:'twisty', twDesc:'t v -0.333333333333333 v 0.333333333333333 v 1 v 1.66666666666667 v 2.33333333333333', scr:null },
+  { id:'tera', name:'Teraminx', kind:'twisty', twDesc:'d f 0.64 f 0.76 f 0.88', scr:null },
+  { id:'cto', name:'CTO', kind:'twisty', twDesc:'o v 0.433012701892219', scr:null },   // corner-turning octahedron (Trajber's)
+  { id:'eliteskewb', name:'Elite Skewb', kind:'twisty', twDesc:'c v 0 v 0.38', scr:null },   // order-4 skewb (cubing: "professor skewb")
 ];
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
@@ -1658,7 +1660,10 @@ function playSelect(entry) {
       + (entry.scr ? ' Use <b>Scramble</b> to shuffle.' : ' (No auto-scramble for this one yet — drag to mix it up.)');
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
-    tp.style.cssText = 'width:100%;max-width:360px;height:340px;margin:0 auto;display:block';
+    // NOTE: do NOT set display here — twisty-player needs its default :host{display:grid};
+    // forcing display:block collapses its internal grid layout to 0 height (blank 360x0 canvas).
+    // margin:0 auto still centres it (grid host is block-level).
+    tp.style.cssText = 'width:100%;max-width:360px;height:340px;margin:0 auto';
     if (entry.tw) tp.setAttribute('puzzle', entry.tw);                         // cubing registry puzzle
     else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
