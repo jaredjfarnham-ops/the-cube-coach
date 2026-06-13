@@ -1177,7 +1177,8 @@ function resetAttempt() {
    4BLD = 4×4, 5BLD = 5×5), so they render and scramble exactly like that cube. Shaped puzzles
    (Pyraminx/Megaminx/Skewb/Square-1/Clock) are absent here — they have no 3-D renderer. */
 const CUBE_N = { '2x2':2, '3x3':3, '4x4':4, '5x5':5, '6x6':6, '7x7':7,
-                 'oh':3, '3bld':3, 'mbld':3, 'fmc':3, '4bld':4, '5bld':5 };
+                 'oh':3, '3bld':3, 'mbld':3, 'fmc':3, '4bld':4, '5bld':5,
+                 'pyramorphix':2 };   // Pyramorphix is mechanically a 2×2 → reuse the cube engine as its (rough-shape) virtual model
 const isRenderable = p => Object.prototype.hasOwnProperty.call(CUBE_N, p);
 const isLLstep = () => trMode==='step' && (trKind==='oll' || trKind==='pll');
 function configTcube() {

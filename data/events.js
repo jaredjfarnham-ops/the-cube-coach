@@ -641,7 +641,8 @@
     'Solve it as a 2×2, then fix the flippable face pieces:',
     '<ol><li><b>Solve it like a 2×2</b> — place the four large (corner) pieces so the puzzle returns to a solid tetrahedron with matching colours.</li><li><b>Orient the face pieces</b> — the four small triangular pieces can sit flipped; a short 2×2-style sequence rotates them into place.</li></ol>',
     'Because it’s mechanically a 2×2, any 2×2 method (Ortega / CLL) works once you account for the flippable face pieces.' ]};
-  LESSONS['pyramorphix/timer/solve'] = nwTimer('pyramorphix','Pyramorphix Timer', OFFICIAL+' (the 2×2 scrambler).');
+  LESSONS['pyramorphix/timer/solve'] = { type:'trainer', solveOnly:true, puzzle:'pyramorphix', title:'Pyramorphix Timer',
+    intro:['A full-solve timer for the Pyramorphix. '+OFFICIAL+' (the 2×2 scrambler). Because it’s mechanically a 2×2, the on-screen model is shown as a <b>2×2 cube</b> — drag to solve it virtually, or hold <b>Space</b> and release to time a solve on your own puzzle. Times save with Ao5 / Ao12.'] };
 
   // ---- 7×7 Skewb (DaYan) ----
   LESSONS['skewb7/learn/about'] = { type:'text', title:'7×7 Skewb — Overview', intro:[
