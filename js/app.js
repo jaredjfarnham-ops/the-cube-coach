@@ -231,6 +231,7 @@ const SIM_KEYS = {                                       // 3-D sims solvable wi
   skewb: { sim: skewbSim, map: { u:'U', l:'L', r:'R', b:'B' } },
   mega:  { sim: megaSim,  map: { u:'U', l:'L', r:'R', b:'B', f:'F' } },
 };
+const CLOCK_SENS = 0.6;   // Virtual Clock drag sensitivity: <1 = less twitchy (1 hour per ~50° of finger sweep instead of 30°)
 const trainerSimEl = document.getElementById('trainerSim');
 const lessonSimEl   = document.getElementById('lessonSim');
 /* ---- shared SIM interaction (orbit + click-to-turn for 3-D sims like Pyraminx) ---- */
@@ -533,7 +534,7 @@ const clockActive = () => trPuzzle==='clock' && trCubeMode==='virtual' && !trVie
     if (!drag) return;
     const a = Math.atan2(e.clientY-drag.cy, e.clientX-drag.cx);
     let dd = a - drag.last; while (dd>Math.PI) dd-=2*Math.PI; while (dd<-Math.PI) dd+=2*Math.PI;
-    drag.acc += dd; drag.last = a;
+    drag.acc += dd * CLOCK_SENS; drag.last = a;
     const hours = Math.round(drag.acc / (Math.PI/6));
     if (hours !== drag.applied) {
       tryStartSolve();
@@ -1212,6 +1213,45 @@ document.getElementById('trReveal').onclick = trReveal;
 document.getElementById('trNext').onclick = trSkip;
 document.getElementById('trPlay').onclick = trPlayAnswer;
 document.getElementById('trReset').onclick = () => { clearSolves(statsKey()); trSolves = getSolves(statsKey()); renderStats(); renderHistory(); };
+/* ---- Import times: paste a list of times (or FMC move counts) into the current event/session ---- */
+function parseTimeToken(tok, count) {
+  tok = tok.trim(); if (!tok) return null;
+  if (/^dnf$/i.test(tok)) return { ms:0, p:'dnf' };
+  if (count) { const v = parseInt(tok, 10); return (Number.isFinite(v) && v>0) ? { ms:v, p:0 } : null; }
+  let p = 0; let t = tok;
+  if (/\+2?$/.test(t)) { p = 2; t = t.replace(/\+2?$/, '').trim(); }   // "12.34+" / "12.34+2" → +2 penalty on a base time
+  if (/^dnf$/i.test(t)) return { ms:0, p:'dnf' };
+  let ms = null, mm = t.match(/^(\d+):(\d+(?:\.\d+)?)$/);              // M:SS.ss or SS.ss
+  if (mm) ms = (parseInt(mm[1],10)*60 + parseFloat(mm[2]))*1000;
+  else if (/^\d+(?:\.\d+)?$/.test(t)) ms = parseFloat(t)*1000;
+  return (ms!=null && isFinite(ms) && ms>0) ? { ms:Math.round(ms), p } : null;
+}
+function openImportDialog() {
+  const ov = document.createElement('div'); ov.className = 'import-ov';
+  const hint = trCount
+    ? 'Paste <b>move counts</b> — one per line or comma-separated. Use a whole number, or <b>DNF</b>.'
+    : 'Paste times — one per line or comma-separated. Use <b>SS.ss</b> or <b>M:SS.ss</b>; add <b>+</b> for a +2, or <b>DNF</b>.';
+  ov.innerHTML = `<div class="import-box"><h3>Import times</h3>
+    <p class="import-hint">${hint} They’re added to the current event (<b>${statsLabel(statsKey())}</b>).</p>
+    <textarea class="import-ta" spellcheck="false" placeholder="${trCount?'25\n28\nDNF':'12.34\n10.05+\nDNF\n1:02.11'}"></textarea>
+    <div class="import-actions"><button class="ctl" data-act="cancel">Cancel</button><button class="ctl primary" data-act="go">Import</button></div>
+    <div class="import-msg"></div></div>`;
+  document.body.appendChild(ov);
+  const ta = ov.querySelector('.import-ta'), msg = ov.querySelector('.import-msg'), close = () => ov.remove();
+  ov.addEventListener('click', e => { if (e.target === ov) close(); });
+  document.addEventListener('keydown', function esc(e){ if (e.key==='Escape'){ close(); document.removeEventListener('keydown', esc); } });
+  ov.querySelector('[data-act=cancel]').onclick = close;
+  ov.querySelector('[data-act=go]').onclick = () => {
+    const toks = ta.value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+    const arr = getSolves(statsKey()), base = Date.now(); let n = 0;
+    toks.forEach(t => { const r = parseTimeToken(t, trCount); if (r) { arr.push({ ms:r.ms, p:r.p, t:base+n }); n++; } });
+    if (n) { Profiles.save(); if (window.cloudSyncSet) cloudSyncSet(statsKey());
+      trSolves = getSolves(statsKey()); renderStats(); renderHistory(); close(); }
+    else msg.textContent = 'No valid entries found — check the format.';
+  };
+  setTimeout(() => ta.focus(), 0);
+}
+document.getElementById('trImport').onclick = openImportDialog;
 /* tap a time → popover with penalties, the date, its scramble + retry, and delete */
 let _smEl = null, _smClose = null;
 function closeSolveMenu() { if (_smEl) { _smEl.remove(); _smEl = null; } if (_smClose) { document.removeEventListener('pointerdown', _smClose); _smClose = null; } }
@@ -1674,7 +1714,7 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
     if (!drag) return;
     const a = Math.atan2(e.clientY-drag.cy, e.clientX-drag.cx);
     let dd = a - drag.last; while (dd>Math.PI) dd-=2*Math.PI; while (dd<-Math.PI) dd+=2*Math.PI;
-    drag.acc += dd; drag.last = a;
+    drag.acc += dd * CLOCK_SENS; drag.last = a;
     const hours = Math.round(drag.acc / (Math.PI/6));
     if (hours !== drag.applied) { drag.sim.turn(drag.side, drag.key, hours-drag.applied); drag.applied=hours; renderSim(); updateStatus(); }
   });
