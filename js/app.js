@@ -223,9 +223,9 @@ const sheetPlayer   = makePlayer(scube, document.getElementById('sheetReadout'))
 const trainerPlayer = makePlayer(tcube, null);
 
 /* ---------- Non-cube puzzle simulators (Square-1, Clock), rendered as SVG ---------- */
-const sqSim = makeSquare1(), clockSim = makeClock(), pyraSim = makePyraminx(), skewbSim = makeSkewb(), megaSim = makeMegaminx();
+const sqSim = makeSquare1(), clockSim = makeClock(), pyraSim = makePyraminx(), skewbSim = makeSkewb(), megaSim = makeMegaminx(), rediSim = makeRedi();
 megaSim.flipTurn = true;   // Megaminx face turns read the opposite way from the drag without this
-const SIM = { sq1: sqSim, clock: clockSim, pyra: pyraSim, skewb: skewbSim, mega: megaSim };
+const SIM = { sq1: sqSim, clock: clockSim, pyra: pyraSim, skewb: skewbSim, mega: megaSim, redi: rediSim };
 const SIM_KEYS = {                                       // 3-D sims solvable with the camera-relative u/l/r/b keys
   pyra:  { sim: pyraSim,  map: { u:'U', l:'L', r:'R', b:'B' } },
   skewb: { sim: skewbSim, map: { u:'U', l:'L', r:'R', b:'B' } },
@@ -545,6 +545,14 @@ const clockActive = () => trPuzzle==='clock' && trCubeMode==='virtual' && !trVie
   const end=()=>{ drag=null; }; trainerSimEl.addEventListener('pointerup', end); trainerSimEl.addEventListener('pointercancel', end);
 })();
 document.addEventListener('keydown', e => { if (clockActive() && e.key==='Delete') { e.preventDefault(); resetAttempt(); } });
+/* Interactive Redi solving in the trainer (Virtual mode): click a corner sticker to twist it (Shift = counter-clockwise). */
+trainerSimEl.addEventListener('pointerdown', e => {
+  if (trPuzzle!=='redi' || trCubeMode!=='virtual' || trView.classList.contains('hidden')) return;
+  const cn = e.target.closest('[data-corner]'); if (!cn) return;
+  tryStartSolve();
+  rediSim.twist(+cn.dataset.corner, e.shiftKey); trainerSimEl.innerHTML = rediSim.svg();
+  if (trState==='running' && rediSim.isSolved()) stopSolve();
+});
 
 /* ================================================================
    NOTATION LESSON
@@ -1191,6 +1199,7 @@ function configTcube() {
   let opts = ok ? (CUBE_N[trPuzzle]===3 ? [P,M,K] : [P,M])   // 3×3 cubes: keyboard too; big cubes: mouse only
               : SIM_KEYS[trPuzzle] ? [P, ['virtual','Virtual — mouse & keyboard']]   // 3-D sim (Pyraminx)
               : trPuzzle==='clock' ? [P, ['virtual','Virtual — click & drag']]   // interactive clock
+              : trPuzzle==='redi' ? [P, ['virtual','Virtual — click a corner']]   // Redi net: click a corner to twist
               : null;                                         // display-only sim (Square-1/Megaminx)
   const row = document.getElementById('trCubeRow'), sel = document.getElementById('trCubeMode');
   row.style.display = opts ? '' : 'none';
@@ -1604,6 +1613,7 @@ const PLAY_PUZZLES = [
   { id:'mega', name:'Megaminx', kind:'sim', sim:megaSim, keys:{ u:'U', l:'L', r:'R', b:'B', f:'F' } },
   { id:'sq1', name:'Square-1', kind:'sim', sim:sqSim },     // interactive via drag (sqSim.turnLayer / slash)
   { id:'clock', name:'Clock', kind:'sim', sim:clockSim },   // interactive via clicks/drags (clockSim.turn)
+  { id:'redi', name:'Redi Cube', kind:'sim', sim:rediSim }, // interactive via clicking a corner (rediSim.twist)
 ];
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
@@ -1721,6 +1731,12 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
   });
   const end=()=>{ drag=null; }; playSimEl.addEventListener('pointerup', end); playSimEl.addEventListener('pointercancel', end);
 })();
+/* Redi Cube in the playground: click a corner sticker to twist it (Shift = counter-clockwise). */
+playSimEl.addEventListener('pointerdown', e => {
+  if (!playEntry || playEntry.id!=='redi') return;
+  const cn = e.target.closest('[data-corner]'); if (!cn) return;
+  rediSim.twist(+cn.dataset.corner, e.shiftKey); renderSim(); updateStatus();
+});
 playSelect(PLAY_PUZZLES.find(p => p.id==='3x3'));   // initialise
 
 function openPlay() {

@@ -631,7 +631,8 @@
     'A simple layer-by-layer method (mostly intuitive):',
     '<ol><li><b>Orient the four first-layer (white) corners.</b></li><li><b>Insert the four first-layer edges.</b></li><li><b>Orient the remaining four top corners.</b></li><li><b>Solve the four middle-layer edges.</b></li><li><b>Permute the last-layer edges</b> with a couple of short edge-cycle algorithms.</li></ol>',
     'Source: speedsolving wiki / ruwix / jonchammer.com (they agree closely).' ]};
-  LESSONS['redi/timer/solve'] = nwTimer('redi','Redi Cube Timer', APPDEF);
+  LESSONS['redi/timer/solve'] = { type:'trainer', solveOnly:true, puzzle:'redi', title:'Redi Cube Timer',
+    intro:['A full-solve timer for the Redi Cube. '+APPDEF+' In <b>Virtual</b> mode the puzzle is drawn as a net — <b>click a corner sticker to twist it</b> (Shift = counter-clockwise) and solve on screen; or time a solve on your own puzzle with <b>Space</b>. Times save with Ao5 / Ao12.'] };
 
   // ---- Pyramorphix (tetrahedral 2x2) ----
   LESSONS['pyramorphix/learn/about'] = { type:'text', title:'Pyramorphix — Overview', intro:[
