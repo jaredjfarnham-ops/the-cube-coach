@@ -274,7 +274,7 @@ function attachSimPointer(el, getSim, onChange, hooks={}) {
       if (Math.hypot(dx,dy) >= 9) {                 // drag a sticker to turn (a TIP facelet → tip turn)
         let tok;
         if (sim.moveFromDrag) tok = sim.moveFromDrag(turnV, dnx, dny, e.clientX, e.clientY, r);   // Megaminx: turn the face the drag points to (may be a neighbour)
-        else { let cr = (dnx-(r.left+r.width/2))*dy - (dny-(r.top+r.height/2))*dx; if (sim.flipTurn) cr=-cr;
+        if (!tok) { let cr = (dnx-(r.left+r.width/2))*dy - (dny-(r.top+r.height/2))*dx; if (sim.flipTurn) cr=-cr;   // fallback (also covers Megaminx's centre "dead zone"): turn the clicked face
                tok = (turnTip ? turnV.toLowerCase() : turnV) + (cr > 0 ? "'" : ''); }
         if (tok) { if (hooks.onTurnStart) hooks.onTurnStart();
           if (sim.animateMove) sim.animateMove(tok, 220, onChange).then(() => { if (hooks.onTurn) hooks.onTurn(); });
@@ -1323,7 +1323,7 @@ function firstEntry(p) {
 function renderHome() {
   homeEl.innerHTML = `<div class="home-grid"></div>`;
   const grid = homeEl.querySelector('.home-grid');
-  [...PUZZLES].sort((a,b) => wcaRank(a.id) - wcaRank(b.id)).forEach(p => {
+  [...PUZZLES].filter(p => !NONWCA.has(p.id)).sort((a,b) => wcaRank(a.id) - wcaRank(b.id)).forEach(p => {
     const card = document.createElement('button'); card.className='home-card';
     const nm = p.methods.filter(m => m.id !== 'timer' && m.id !== 'fund').length;   // Timer & Fundamentals aren't solving methods
     card.innerHTML = `${cubeArt(p)}<div class="home-name">${p.name}</div>
@@ -1353,17 +1353,19 @@ const CATEGORIES = [
   { id:'nonwca', name:'Non-WCA',      puzzles:['fto','mpyra','kilo'] },
 ];
 const catOf = pid => CATEGORIES.find(c => c.puzzles.includes(pid));
+const NONWCA = new Set((CATEGORIES.find(c => c.id==='nonwca') || { puzzles:[] }).puzzles);   // kept off the home page; menu tab sits after Stats
 
 const homeTab = document.createElement('button');
 homeTab.className='puzzle-tab home-tab'; homeTab.textContent='⌂ Home';
 homeTab.onclick = goHome; megabar.appendChild(homeTab);
-CATEGORIES.forEach(cat => {
+function makeCatTab(cat) {
   const tab=document.createElement('button'); tab.className='puzzle-tab'; tab.dataset.cat=cat.id;
   tab.innerHTML = cat.name+'<span class="caret">▾</span>';
   tab.addEventListener('click', () => openPuzzle===cat.id ? closePanel() : openCategory(cat.id));
   tab.addEventListener('mouseenter', () => { if (openPuzzle) openCategory(cat.id); });
   megabar.appendChild(tab);
-});
+}
+CATEGORIES.forEach(cat => { if (cat.id!=='nonwca') makeCatTab(cat); });   // Non-WCA is appended after the Stats tab below
 const playTab = document.createElement('button');
 playTab.className='puzzle-tab'; playTab.dataset.cat='play'; playTab.textContent='🧩 Virtual Cube';
 playTab.addEventListener('click', openPlay); megabar.appendChild(playTab);
@@ -1375,6 +1377,9 @@ timerTab.addEventListener('click', openTimer); megabar.appendChild(timerTab);
 const statsTab = document.createElement('button');
 statsTab.className='puzzle-tab'; statsTab.dataset.cat='stats'; statsTab.textContent='📊 Statistics';
 statsTab.addEventListener('click', openStats); megabar.appendChild(statsTab);
+
+const _nonwcaCat = CATEGORIES.find(c => c.id==='nonwca');   // Non-WCA category tab, placed AFTER Stats
+if (_nonwcaCat) makeCatTab(_nonwcaCat);
 
 /* Render one puzzle's methods+lessons into the right pane. */
 function renderMethods(container, pId) {
