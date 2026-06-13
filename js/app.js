@@ -1409,31 +1409,38 @@ const EVENT = {
 };
 /* Custom inline-SVG icons for non-WCA puzzles (the icon font only ships WCA glyphs). Shape reflects
    the puzzle family; internal lines hint at size/order. */
+/* Non-WCA icons in the WCA style: a single flat FACE of the puzzle with its grid (denser = bigger).
+   minx→pentagon face, pyra/octa→triangle face, skewb/redi→square face. */
 const NW_ICON = (() => {
   const O='<svg viewBox="0 0 24 24" class="puz-svg" aria-hidden="true">', C='</svg>';
-  const ln=(a,b,c,d)=>`<line x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`;
-  const PENT=[[12,3],[20.6,9.2],[17.3,19.3],[6.7,19.3],[3.4,9.2]];
+  const ln=(a,b,c,d)=>`<line x1="${(+a).toFixed(1)}" y1="${(+b).toFixed(1)}" x2="${(+c).toFixed(1)}" y2="${(+d).toFixed(1)}"/>`;
+  const lerp=(P,Q,t)=>[P[0]+(Q[0]-P[0])*t, P[1]+(Q[1]-P[1])*t];
+  const TA=[12,3], TB=[3.5,20], TC=[20.5,20];                     // a triangular face (pyraminx / octahedron)
+  const PENT=[[12,2.5],[21,9.3],[17.4,20],[6.6,20],[3,9.3]];
   function minx(layers){ let g=`<polygon class="pz-face" points="${PENT.map(p=>p.join(',')).join(' ')}"/>`;
-    PENT.forEach(p=>g+=ln(12,12,p[0],p[1]));
-    const rings = layers<=2?0 : layers<=4?1 : 2;
-    for(let i=1;i<=rings;i++){ const s=1-i*0.30; g+=`<polygon points="${PENT.map(p=>(12+(p[0]-12)*s).toFixed(1)+','+(12+(p[1]-12)*s).toFixed(1)).join(' ')}"/>`; }
+    const rings = layers<=2?1 : layers<=4?2 : 3;                   // concentric pentagons + spokes = megaminx face
+    for(let i=1;i<=rings;i++){ const s=1-i*(0.62/(rings+0.4)); g+=`<polygon points="${PENT.map(p=>(12+(p[0]-12)*s).toFixed(1)+','+(12+(p[1]-12)*s).toFixed(1)).join(' ')}"/>`; }
+    const s=1-(0.62/(rings+0.4)); PENT.forEach(p=>g+=ln(12+(p[0]-12)*s,12+(p[1]-12)*s,p[0],p[1]));
     return O+g+C; }
-  function pyra(layers){ let g='<polygon class="pz-face" points="12,3.5 3.5,20 20.5,20"/>';
-    for(let r=1;r<layers;r++){ const t=r/layers, lx=12+(3.5-12)*t, rx=12+(20.5-12)*t, y=3.5+(20-3.5)*t; g+=ln(lx.toFixed(1),y.toFixed(1),rx.toFixed(1),y.toFixed(1)); }
+  function tri(layers){ let g=`<polygon class="pz-face" points="${TA.join(',')} ${TB.join(',')} ${TC.join(',')}"/>`;
+    for(let i=1;i<layers;i++){ const t=i/layers;                  // full triangular grid: lines parallel to all three sides
+      g+=ln(...lerp(TA,TB,t), ...lerp(TA,TC,t)); g+=ln(...lerp(TC,TA,t), ...lerp(TC,TB,t)); g+=ln(...lerp(TB,TA,t), ...lerp(TB,TC,t)); }
     return O+g+C; }
-  function skewb(layers){ let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>'+ln(4,4,20,20)+ln(20,4,4,20);
-    if(layers>=4) g+='<rect x="8.5" y="8.5" width="7" height="7"/>';
-    if(layers>=6) g+=ln(12,4,12,20)+ln(4,12,20,12);
+  function octaFace(corner){ const mAB=lerp(TA,TB,.5), mBC=lerp(TB,TC,.5), mCA=lerp(TC,TA,.5);
+    let g=`<polygon class="pz-face" points="${TA.join(',')} ${TB.join(',')} ${TC.join(',')}"/>`
+        + `<polygon points="${mAB.map(v=>v.toFixed(1)).join(',')} ${mBC.map(v=>v.toFixed(1)).join(',')} ${mCA.map(v=>v.toFixed(1)).join(',')}"/>`;
+    if(corner) [TA,TB,TC].forEach(p=>g+=`<circle class="pz-dot" cx="${p[0]}" cy="${p[1]}" r="1.7"/>`);
+    return O+g+C; }
+  function skewb(layers){ const M=[[12,4],[20,12],[12,20],[4,12]];   // square face + inscribed diamond(s) = skewb cut
+    let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>'+`<polygon points="${M.map(p=>p.join(',')).join(' ')}"/>`;
+    for(let i=1;i<=Math.min(layers-2,3);i++){ const s=1-i*0.24; g+=`<polygon points="${M.map(p=>(12+(p[0]-12)*s).toFixed(1)+','+(12+(p[1]-12)*s).toFixed(1)).join(' ')}"/>`; }
     return O+g+C; }
   function redi(){ let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>';
     [[4,4,8,4,4,8],[20,4,16,4,20,8],[4,20,8,20,4,16],[20,20,16,20,20,16]].forEach(c=>g+=`<polygon class="pz-dot" points="${c[0]},${c[1]} ${c[2]},${c[3]} ${c[4]},${c[5]}"/>`);
     return O+g+C; }
-  function octa(corner){ let g='<polygon class="pz-face" points="12,2 22,12 12,22 2,12"/>'+ln(2,12,22,12)+ln(12,2,12,22);
-    if(corner) [[12,2],[22,12],[12,22],[2,12]].forEach(p=>g+=`<circle class="pz-dot" cx="${p[0]}" cy="${p[1]}" r="1.6"/>`);
-    return O+g+C; }
-  const map={ fto:()=>octa(false), cto:()=>octa(true), redi:()=>redi(),
+  const map={ fto:()=>octaFace(false), cto:()=>octaFace(true), redi:()=>redi(),
     kilo:()=>minx(2), masterkilo:()=>minx(4), giga:()=>minx(5), elitekilo:()=>minx(6), tera:()=>minx(7),
-    mpyra:()=>pyra(4), profpyra:()=>pyra(5), royalpyra:()=>pyra(6), pyramorphix:()=>pyra(2),
+    mpyra:()=>tri(4), profpyra:()=>tri(5), royalpyra:()=>tri(6), pyramorphix:()=>tri(2),
     masterskewb:()=>skewb(3), eliteskewb:()=>skewb(4), skewb7:()=>skewb(7) };
   return id => map[id] ? map[id]() : null;
 })();
