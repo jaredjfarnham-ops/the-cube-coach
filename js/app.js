@@ -1620,7 +1620,12 @@ const PLAY_PUZZLES = [
   { id:'mega', name:'Megaminx', kind:'sim', sim:megaSim, keys:{ u:'U', l:'L', r:'R', b:'B', f:'F' } },
   { id:'sq1', name:'Square-1', kind:'sim', sim:sqSim },     // interactive via drag (sqSim.turnLayer / slash)
   { id:'clock', name:'Clock', kind:'sim', sim:clockSim },   // interactive via clicks/drags (clockSim.turn)
-  { id:'redi', name:'Redi Cube', kind:'sim', sim:rediSim }, // interactive via clicking a corner (rediSim.twist)
+  // ---- Non-WCA: full 3-D interactive models via cubing.js <twisty-player> (tw = cubing puzzle id; scr = scramble event id or null) ----
+  { id:'fto', name:'FTO', kind:'twisty', tw:'fto', scr:'fto' },
+  { id:'kilo', name:'Kilominx', kind:'twisty', tw:'kilominx', scr:'kilominx' },
+  { id:'mpyra', name:'Master Pyraminx', kind:'twisty', tw:'master_tetraminx', scr:'master_tetraminx' },
+  { id:'giga', name:'Gigaminx', kind:'twisty', tw:'gigaminx', scr:null },     // no cubing scramble — drag to mix
+  { id:'redi', name:'Redi Cube', kind:'twisty', tw:'redi_cube', scr:null },
 ];
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
@@ -1630,7 +1635,7 @@ const playControls = makeCubeControls(playCube, document.getElementById('playCub
 });
 const renderSim = () => { playSimEl.innerHTML = playEntry.sim.svg3d ? playEntry.sim.svg3d() : playEntry.sim.svg(); };
 function updateStatus() {
-  if (!playEntry) return;
+  if (!playEntry || playEntry.kind==='twisty') return;     // twisty model manages its own state
   const solved = playEntry.kind==='cube' ? cubeSolvedByColor(playCube) : playEntry.sim.isSolved();
   playStatus.classList.toggle('solved', solved);
   playStatus.textContent = solved ? 'Solved ✔'
@@ -1638,6 +1643,16 @@ function updateStatus() {
 }
 function playSelect(entry) {
   playEntry = entry; playHist = []; playScrText.textContent = ''; busy = false;
+  if (entry.kind==='twisty') {                              // 3-D cubing.js model (FTO/Kilominx/Master Pyraminx/Gigaminx/Redi)
+    playView.classList.toggle('sim-mode', true);
+    document.getElementById('playUndo').style.display = 'none';
+    playControls.setInteract({});
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag the puzzle</b> to rotate the view, and <b>drag a sticker</b> to turn it.'
+      + (entry.scr ? ' Use <b>Scramble</b> to shuffle.' : ' (No auto-scramble for this one yet — drag to mix it up.)');
+    playSimEl.innerHTML = `<twisty-player puzzle="${entry.tw}" background="none" control-panel="none" hint-facelets="none" tempo-scale="5" style="width:100%;max-width:360px;height:340px;margin:0 auto;display:block"></twisty-player>`;
+    playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
+    return;
+  }
   const isSim = entry.kind==='sim';
   playView.classList.toggle('sim-mode', isSim);
   document.getElementById('playUndo').style.display = isSim ? 'none' : '';
@@ -1654,6 +1669,11 @@ function playSelect(entry) {
 }
 function playScramble() {
   if (busy) return;
+  if (playEntry.kind==='twisty') {                          // scramble the 3-D model (where cubing.js supports it)
+    const tp = playSimEl.querySelector('twisty-player'); if (!tp) return;
+    if (playEntry.scr && window.wcaScramble) window.wcaScramble(playEntry.scr).then(s => { tp.experimentalSetupAlg = s; tp.alg = ''; playScrText.textContent = showMoves(s.split(/\s+/)); });
+    playStatus.textContent='Scrambled'; playStatus.classList.remove('solved'); return;
+  }
   if (playEntry.kind==='cube') { const seq=fullScramble(playN); playCube.reset(); playCube.applyInstant(seq); playHist=[]; playScrText.textContent=showMoves(seq); }
   else { const seq=playEntry.sim.scramble(); renderSim(); playScrText.textContent=showMoves(seq); }
   playStatus.textContent='Scrambled'; playStatus.classList.remove('solved');

@@ -12,6 +12,7 @@
   window.wcaScramble = (ev) => randomScrambleForEvent(ev).then(a => a.toString());
   window.wcaReady = true;
   window.dispatchEvent(new Event('wca-ready'));
+  import('./vendor/cubing/twisty/index.js').then(() => { window.twistyReady = true; window.dispatchEvent(new Event('twisty-ready')); });   // registers <twisty-player> 3D models
 </script>
 </head>
 <body>
