@@ -56,6 +56,9 @@
   .cat-pz.active .cubing-icon { color: var(--accent-2); }
   .cat-methods { display: flex; flex-wrap: wrap; gap: 26px; flex: 1; }
   [data-theme="light"] .cat-puzzles { border-color: #d6dcec; }
+  .cat-puzzles { max-height: 72vh; overflow-y: auto; }                 /* long Non-WCA family list */
+  .cat-fam-head { font-size: 10px; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); font-weight: 700; padding: 10px 10px 3px; }
+  .cat-fam-head:first-child { padding-top: 2px; }
 
   /* ===== Placeholder ===== */
   .placeholder { max-width: 740px; margin: 48px auto; padding: 0 24px; }

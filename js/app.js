@@ -904,9 +904,50 @@ function megaScramble() {                           // Megaminx: 7 lines of R±�
   }
   return [lines.join('\n')];                        // single pre-wrapped block
 }
+/* ---- Non-WCA scramble generators (random-move). Non-WCA sizes have no official standard, so these
+   are app-defined and labelled as such in each puzzle's pages; refine once real models exist. ---- */
+function minxScrambleN(layers) {                    // Megaminx-family: R±±/D±± rows + U; inner-layer turns for >3 layers
+  const lines=[];
+  for (let l=0;l<7;l++) { const row=[];
+    for (let i=0;i<5;i++){ row.push('R'+(rnd(2)?'++':'--')); row.push('D'+(rnd(2)?'++':'--')); }
+    row.push(rnd(2)?'U':"U'"); lines.push(row.join(' ')); }
+  if (layers>3) { const inner=[]; const n=(layers-3)*10;       // app-defined inner-layer turns: 2R±±, 3R±± … inward
+    for (let i=0;i<n;i++){ const d=2+rnd(layers-2); inner.push(d+(rnd(2)?'R':'D')+(rnd(2)?'++':'--')); }
+    lines.push(inner.join(' ')); }
+  return [lines.join('\n')];
+}
+function pyraScrambleN(layers) {                    // Pyraminx-family: U/L/R/B faces, wide turns for inner layers, then tips
+  const F=['U','L','R','B'], seq=[]; let last=null; const n = 8 + layers*5;
+  while (seq.length < n) { const f=F[rnd(4)]; if (f===last) continue; last=f;
+    const w = layers>3 ? 1+rnd(layers-2) : 1; const tok = w===1?f : w===2?f+'w' : w+f+'w';
+    seq.push(tok + (rnd(2)?"'":"")); }
+  ['u','l','r','b'].forEach(t => { if (rnd(3)) seq.push(t + (rnd(2)?"'":"")); });
+  return seq;
+}
+function ctoScramble() {                            // Corner-Turning Octahedron: 6 vertices L R F B U D
+  const V=['L','R','F','B','U','D'], M=['',"'",'2'], seq=[]; let last=null;
+  while (seq.length < 18) { const v=V[rnd(6)]; if (v===last) continue; last=v; seq.push(v+M[rnd(3)]); }
+  return seq;
+}
+function rediScramble() {                           // Redi: 4 top corners R L F B + 4 bottom r l f b
+  const C=['R','L','F','B','r','l','f','b'], seq=[]; let last=null;
+  while (seq.length < 18) { const c=C[rnd(8)]; if (c.toUpperCase()===(last||'').toUpperCase()) continue; last=c; seq.push(c+(rnd(2)?"'":"")); }
+  return seq;
+}
+function skewbScrambleN(layers) {                   // Skewb-family: R L U B corner twists, wide (inner-cut) for Master/Elite
+  const F=['R','L','U','B'], seq=[]; let last=null; const n = 8 + layers*4;
+  while (seq.length < n) { const f=F[rnd(4)]; if (f===last) continue; last=f;
+    const tok = layers>2 && rnd(2) ? f+'w' : f; seq.push(tok+(rnd(2)?"'":"")); }
+  return seq;
+}
 /* Square-1 & Clock scrambles come from their simulators (legal moves; sim is left showing the state). */
 const SHAPED_SCRAMBLE = { pyra:()=>pyraSim.scramble(), skewb:()=>skewbSim.scramble(), mega:()=>megaSim.scramble(),
-                          sq1:()=>sqSim.scramble(), clock:()=>clockSim.scramble() };
+                          sq1:()=>sqSim.scramble(), clock:()=>clockSim.scramble(),
+                          // non-WCA (no sim): app-defined random-move generators
+                          cto:()=>ctoScramble(), redi:()=>rediScramble(),
+                          masterkilo:()=>minxScrambleN(4), giga:()=>minxScrambleN(5), elitekilo:()=>minxScrambleN(6), tera:()=>minxScrambleN(7),
+                          profpyra:()=>pyraScrambleN(5), royalpyra:()=>pyraScrambleN(6),
+                          masterskewb:()=>skewbScrambleN(3), eliteskewb:()=>skewbScrambleN(4) };
 
 function fullScramble(puzzle) {                    // whole-solve scramble in WCA format (proper move set, restriction & length)
   if (SHAPED_SCRAMBLE[puzzle]) return SHAPED_SCRAMBLE[puzzle]();
@@ -1310,7 +1351,10 @@ const EVENT = {
   '3x3':'333', 'oh':'333oh', '2x2':'222', '4x4':'444', '5x5':'555', '6x6':'666', '7x7':'777',
   'pyra':'pyram', 'mega':'minx', 'skewb':'skewb', 'sq1':'sq1', 'clock':'clock',
   '3bld':'333bf', 'fmc':'333fm', 'mbld':'333mbf', '4bld':'444bf', '5bld':'555bf',
-  'fto':'pyram', 'mpyra':'pyram', 'kilo':'minx',   // non-WCA: no dedicated icon — closest shape stand-in
+  // non-WCA: no dedicated glyphs — closest shape stand-ins
+  'fto':'pyram', 'cto':'pyram', 'mpyra':'pyram', 'profpyra':'pyram', 'royalpyra':'pyram',
+  'kilo':'minx', 'masterkilo':'minx', 'giga':'minx', 'elitekilo':'minx', 'tera':'minx',
+  'masterskewb':'skewb', 'eliteskewb':'skewb', 'redi':'333',
 };
 function cubeArt(p) {
   return `<span class="cubing-icon event-${EVENT[p.id] || '333'} art-icon"></span>`;
@@ -1352,7 +1396,7 @@ const CATEGORIES = [
   { id:'nxn',    name:'Cubes',         puzzles:['2x2','3x3','4x4','5x5','6x6','7x7'] },
   { id:'var',    name:'Challenges',    puzzles:['oh','3bld','fmc','mbld','4bld','5bld'] },
   { id:'shaped', name:'Other Puzzles', puzzles:['pyra','mega','skewb','sq1','clock'] },
-  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','mpyra','kilo'] },
+  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','cto','kilo','masterkilo','giga','elitekilo','tera','mpyra','profpyra','royalpyra','masterskewb','eliteskewb','redi'] },
 ];
 const catOf = pid => CATEGORIES.find(c => c.puzzles.includes(pid));
 const NONWCA = new Set((CATEGORIES.find(c => c.id==='nonwca') || { puzzles:[] }).puzzles);   // kept off the home page; menu tab sits after Stats
@@ -1412,8 +1456,11 @@ function openCategory(catId, wantPz) {
   const left = megapanel.querySelector('.cat-puzzles'), right = megapanel.querySelector('.cat-methods');
   const activePz = (wantPz && cat.puzzles.includes(wantPz)) ? wantPz
                  : (cur.p && cat.puzzles.includes(cur.p)) ? cur.p : cat.puzzles[0];
+  let lastFam = null;
   cat.puzzles.forEach(pid => {
     const p = getP(pid);
+    if (p.fam && p.fam !== lastFam) { lastFam = p.fam;              // SpeedCubeShop-style family headers (Non-WCA submenu)
+      const h = document.createElement('div'); h.className='cat-fam-head'; h.textContent = p.fam; left.appendChild(h); }
     const b = document.createElement('button'); b.className='cat-pz'+(pid===activePz?' active':''); b.dataset.pz=pid;
     b.innerHTML = `<span class="cubing-icon event-${EVENT[pid]||'333'}"></span><span>${shortName(p.name)}</span>`;
     const activate = () => { left.querySelectorAll('.cat-pz').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderMethods(right, pid); };

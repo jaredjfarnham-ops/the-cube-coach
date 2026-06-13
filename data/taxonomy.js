@@ -126,18 +126,67 @@ const PUZZLES = [
       { id:'5bld', name:'5BLD', blurb:'The largest WCA BLD event: + and x centers, wings, midges, 3BLD.', items:[ {id:'centers',name:'Centers'}, {id:'wings',name:'Wings'}, {id:'midges',name:'Midges'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with standard 5×5 scrambles — memo + execution timed together; times saved to your profile.', items:[ {id:'solve',name:'5BLD Timer'} ]},
     ]},
-  // ---- Non-WCA puzzles: official random-state scrambles (via cubing.js) + a full-solve timer.
-  //      No on-screen model yet — you read the scramble and time on your own puzzle. ----
-  { id:'fto', name:'FTO (Face-Turning Octahedron)', art:'pyram', methods:[
-      { id:'intro', name:'Overview', blurb:'An octahedron whose 8 triangular faces each turn.', items:[ {id:'about',name:'About & Notation'} ]},
+  // ================================================================
+  //  NON-WCA PUZZLES  (fam: groups them in the Non-WCA sub-menu)
+  //  Timer + tutorials. Scrambles: cubing.js where official (FTO / Master Pyraminx / Kilominx);
+  //  app-defined random-move generators otherwise (clearly noted in each puzzle's pages).
+  //  No on-screen models yet — solve on your own puzzle from the scramble text.
+  // ================================================================
+  // ---- Octahedra ----
+  { id:'fto', name:'FTO (Face-Turning Octahedron)', art:'pyram', fam:'Octahedra', methods:[
+      { id:'learn', name:'Tutorial', blurb:'What it is, its notation, and a layer-by-layer solve.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with official FTO scrambles; times saved to your profile.', items:[ {id:'solve',name:'FTO Timer'} ]},
     ]},
-  { id:'mpyra', name:'Master Pyraminx', art:'pyram', methods:[
-      { id:'intro', name:'Overview', blurb:'A 4-layer Pyraminx with inner-slice turns.', items:[ {id:'about',name:'About & Notation'} ]},
+  { id:'cto', name:'CTO (Corner-Turning Octahedron)', art:'pyram', fam:'Octahedra', methods:[
+      { id:'learn', name:'Tutorial', blurb:'A corner-turning octahedron — overview, notation, solve.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer with app-defined CTO scrambles; times saved to your profile.', items:[ {id:'solve',name:'CTO Timer'} ]},
+    ]},
+  // ---- Minx family (dodecahedra) ----
+  { id:'kilo', name:'Kilominx', art:'minx', fam:'Minx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'The corners-only Megaminx (dodecahedral 2×2).', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer with official Kilominx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Kilominx Timer'} ]},
+    ]},
+  { id:'masterkilo', name:'Master Kilominx', art:'minx', fam:'Minx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'4-layer corners-only minx — solved by reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Master Kilominx Timer'} ]},
+    ]},
+  { id:'giga', name:'Gigaminx', art:'minx', fam:'Minx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'The 5-layer Megaminx — reduction to a Megaminx.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Gigaminx Timer'} ]},
+    ]},
+  { id:'elitekilo', name:'Elite Kilominx', art:'minx', fam:'Minx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'6-layer corners-only minx — reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Elite Kilominx Timer'} ]},
+    ]},
+  { id:'tera', name:'Teraminx', art:'minx', fam:'Minx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'The 7-layer Megaminx — reduction to a Megaminx.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Teraminx Timer'} ]},
+    ]},
+  // ---- Pyraminx family (tetrahedra) ----
+  { id:'mpyra', name:'Master Pyraminx', art:'pyram', fam:'Pyraminx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'4-layer Pyraminx with inner-slice turns.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
       { id:'timer', name:'Timer', blurb:'Full-solve timer with official Master Pyraminx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Master Pyraminx Timer'} ]},
     ]},
-  { id:'kilo', name:'Kilominx', art:'minx', methods:[
-      { id:'intro', name:'Overview', blurb:'A corners-only Megaminx — the dodecahedral 2×2.', items:[ {id:'about',name:'About & Notation'} ]},
-      { id:'timer', name:'Timer', blurb:'Full-solve timer with official Kilominx scrambles; times saved to your profile.', items:[ {id:'solve',name:'Kilominx Timer'} ]},
+  { id:'profpyra', name:"Professor's Pyraminx", art:'pyram', fam:'Pyraminx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'5-layer Pyraminx — reduction to a Pyraminx.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:"Professor's Pyraminx Timer"} ]},
+    ]},
+  { id:'royalpyra', name:'Royal Pyraminx', art:'pyram', fam:'Pyraminx family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'6-layer Pyraminx — reduction.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Royal Pyraminx Timer'} ]},
+    ]},
+  // ---- Skewb family (deeper-cut corner-turners; standard series tops out at Elite) ----
+  { id:'masterskewb', name:'Master Skewb', art:'skewb', fam:'Skewb family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'A 2-cut (order-3) Skewb.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Master Skewb Timer'} ]},
+    ]},
+  { id:'eliteskewb', name:'Elite Skewb', art:'skewb', fam:'Skewb family', methods:[
+      { id:'learn', name:'Tutorial', blurb:'A 3-cut (order-4) Skewb — the deepest standard skewb.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Elite Skewb Timer'} ]},
+    ]},
+  // ---- Other ----
+  { id:'redi', name:'Redi Cube', art:'skewb', fam:'Other', methods:[
+      { id:'learn', name:'Tutorial', blurb:'A corner-twisting cube — easy layer-by-layer solve.', items:[ {id:'about',name:'Overview & Notation'}, {id:'method',name:'Solving Method'} ]},
+      { id:'timer', name:'Timer', blurb:'Full-solve timer; times saved to your profile.', items:[ {id:'solve',name:'Redi Cube Timer'} ]},
     ]},
 ];
