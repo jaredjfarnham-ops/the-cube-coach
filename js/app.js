@@ -1631,6 +1631,8 @@ const PLAY_PUZZLES = [
   { id:'profpyra', name:"Professor's Pyraminx", kind:'twisty', twName:'professor pyraminx', scr:null },
   { id:'royalpyra', name:'Royal Pyraminx', kind:'twisty', twName:'royal pyraminx', scr:null },
   { id:'tera', name:'Teraminx', kind:'twisty', twName:'teraminx', scr:null },
+  { id:'cto', name:'CTO', kind:'twisty', twName:"Trajber's octahedron", scr:null },   // corner-turning octahedron
+  { id:'eliteskewb', name:'Elite Skewb', kind:'twisty', twName:'professor skewb', scr:null },   // order-4 skewb (cubing: "professor skewb")
 ];
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
