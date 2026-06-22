@@ -906,7 +906,7 @@ function megaScramble() {                           // Megaminx: 7 lines of R±�
   return [lines.join('\n')];                        // single pre-wrapped block
 }
 /* Square-1 & Clock scrambles come from their simulators (legal moves; sim is left showing the state). */
-const SHAPED_SCRAMBLE = { pyra:()=>pyraSim.scramble(), skewb:()=>skewbSim.scramble(), mega:()=>megaSim.scramble(),
+const SHAPED_SCRAMBLE = { pyra:()=>pyraSim.scramble(), skewb:()=>skewbSim.scramble(), mega:()=>megaScramble(),   // proper WCA R++/D--/U notation (the SVG sim's single-face turns can't represent it)
                           sq1:()=>sqSim.scramble(), clock:()=>clockSim.scramble() };
 
 function fullScramble(puzzle) {                    // whole-solve scramble in WCA format (proper move set, restriction & length)
@@ -986,7 +986,8 @@ function setSimScramble() {
 }
 function applyScrambleDisplay() {
   if (isRenderable(trPuzzle)) { tcube.reset(); tcube.applyInstant(trScramble); }   // shaped puzzles have no 3-D renderer
-  else if (SIM[trPuzzle]) { setSimScramble(); trainerSimEl.innerHTML = SIM[trPuzzle].svg(); }
+  else if (SIM[trPuzzle] && trPuzzle!=='mega') { setSimScramble(); trainerSimEl.innerHTML = SIM[trPuzzle].svg(); }
+  // Megaminx: WCA R++/D-- scramble can't drive the single-face-turn SVG sim → text-only (the sim stays in lessons/playground)
   trScrambleEl.textContent = showMoves(trScramble);
   trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
 }
@@ -1141,7 +1142,7 @@ const isLLstep = () => trMode==='step' && (trKind==='oll' || trKind==='pll');
 function configTcube() {
   const ok = isRenderable(trPuzzle);
   trView.classList.toggle('no-cube', !ok);
-  trView.classList.toggle('has-sim', !!SIM[trPuzzle]);     // SVG sim instead of the 3-D cube
+  trView.classList.toggle('has-sim', !!SIM[trPuzzle] && trPuzzle!=='mega');     // SVG sim instead of the 3-D cube (Megaminx is text-only — its WCA scramble can't drive the sim)
   if (ok) tcube.rebuild({ N: CUBE_N[trPuzzle], flip: isLLstep() });
   // Cube-interaction options for THIS puzzle
   const P=['physical','Physical — Space timer'], M=['mouse','Virtual — mouse'], K=['keyboard','Virtual — keyboard'];
