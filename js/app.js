@@ -972,11 +972,22 @@ function wcaClockToSim(str) {
   }
   return out;
 }
+/* cubing.js emits clock moves as edges→ALL→corners; reorder to the canonical TNoodle order
+   (corners UR DR DL UL, then edges U R D L, then ALL) on each side of y2. The 9 front + 5 back
+   moves are an independent basis (they commute), so this is purely cosmetic — identical state. */
+function normalizeClockScramble(tokens) {
+  const yi = tokens.indexOf('y2'); if (yi < 0) return tokens;             // not WCA notation → leave as-is
+  const name = t => (t.match(/^(UR|DR|DL|UL|ALL|U|R|D|L)/) || [])[1];
+  const ord = (arr, seq) => arr.slice().sort((a,b) => seq.indexOf(name(a)) - seq.indexOf(name(b)));
+  return [...ord(tokens.slice(0,yi), ['UR','DR','DL','UL','U','R','D','L','ALL']), 'y2',
+          ...ord(tokens.slice(yi+1), ['U','R','D','L','ALL'])];
+}
 /* a WCA scramble STRING → the token array each display engine expects */
 function scrambleToTokens(puzzle, str) {
   if (puzzle === 'sq1') return String(str).match(/\([^)]*\)|\//g) || [];   // (a, b) tuples + slashes
   if (isRenderable(puzzle)) return tokenize(str);                          // NxN cubes
-  return String(str).trim().split(/\s+/);                                 // clock / pyra / mega / skewb notation tokens
+  if (puzzle === 'clock') return normalizeClockScramble(String(str).trim().split(/\s+/));   // canonical move order
+  return String(str).trim().split(/\s+/);                                 // pyra / mega / skewb notation tokens
 }
 /* drive the on-screen SVG sim from trScramble (clock needs WCA→pin/turn; old saved tokens pass through) */
 function setSimScramble() {
