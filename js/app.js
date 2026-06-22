@@ -1045,11 +1045,28 @@ function setSimScramble() {
     clockSim.setTokens(isWca ? wcaClockToSim(t.join(' ')) : t); }
   else SIM[trPuzzle].setTokens(trScramble);
 }
+/* Megaminx scrambles are 7 rows, each ending in U/U′. Shrink the font so every row fits on ONE
+   line at any width / aspect ratio (instead of wrapping mid-row). No-ops for single-line scrambles. */
+function fitScramble() {
+  const el = trScrambleEl;
+  el.style.fontSize = ''; el.style.whiteSpace = '';                 // reset → other puzzles keep the CSS default
+  if (!el.textContent.includes('\n')) return;                       // only the multi-line Megaminx scramble
+  el.style.whiteSpace = 'pre';                                      // each row on its own line (don't wrap)
+  if (el.clientWidth <= 0 || el.scrollWidth <= el.clientWidth) return;   // hidden, or already fits
+  // Measure the element itself (so word-spacing/kerning are exact): first-estimate then fine-tune until it fits.
+  let size = parseFloat(getComputedStyle(el).fontSize);
+  size = Math.max(7, size * el.clientWidth / el.scrollWidth);
+  el.style.fontSize = size + 'px';
+  let guard = 0;
+  while (el.scrollWidth > el.clientWidth && size > 7 && guard++ < 30) { size = Math.max(7, size - 0.3); el.style.fontSize = size + 'px'; }
+}
+window.addEventListener('resize', fitScramble);                     // keep rows fitting as the window/aspect changes
 function applyScrambleDisplay() {
   if (isRenderable(trPuzzle)) { tcube.reset(); tcube.applyInstant(trScramble); }   // shaped puzzles have no 3-D renderer
   else if (SIM[trPuzzle] && trPuzzle!=='mega') { setSimScramble(); trainerSimEl.innerHTML = SIM[trPuzzle].svg(); }
   // Megaminx: WCA R++/D-- scramble can't drive the single-face-turn SVG sim → text-only (the sim stays in lessons/playground)
   trScrambleEl.textContent = showMoves(trScramble);
+  fitScramble();                                                    // size multi-line (Megaminx) rows to fit
   trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
 }
 let scrambleSeq = 0;                                  // guards async scrambles against rapid "new scramble" clicks
