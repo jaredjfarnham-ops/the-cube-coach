@@ -1068,6 +1068,7 @@ function applyScrambleDisplay() {
   trScrambleEl.textContent = showMoves(trScramble);
   fitScramble();                                                    // size multi-line (Megaminx) rows to fit
   trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
+  if (TWISTY_TIMER[trPuzzle] && trCubeMode==='virtual') buildTwistyTimer();   // load the fresh scramble into the 3-D model
 }
 let scrambleSeq = 0;                                  // guards async scrambles against rapid "new scramble" clicks
 function newScramble() {
@@ -1218,6 +1219,38 @@ const CUBE_N = { '2x2':2, '3x3':3, '4x4':4, '5x5':5, '6x6':6, '7x7':7,
                  'pyramorphix':2 };   // Pyramorphix is mechanically a 2×2 → reuse the cube engine as its (rough-shape) virtual model
 const isRenderable = p => Object.prototype.hasOwnProperty.call(CUBE_N, p);
 const isLLstep = () => trMode==='step' && (trKind==='oll' || trKind==='pll');
+
+/* ---- Virtual 3-D timer: an interactive cubing.js model you solve on screen. Auto-starts on the first
+   move and auto-stops when solved (via experimentalModel.currentPattern + a solved check). Only offered
+   for puzzles with a real cubing scramble the model can apply, so the scramble & sim always agree. ---- */
+const TWISTY_TIMER = { fto:{tw:'fto'}, kilo:{tw:'kilominx'}, mpyra:{tw:'master_tetraminx'}, mega:{tw:'megaminx'} };
+function twPatternSolved(kp){ try { return kp.experimentalIsSolved({ ignorePuzzleOrientation:true, ignoreCenterOrientation:true }); } catch(e){ return kp.isIdentical(kp.kpuzzle.defaultPattern()); } }
+let trTwistyUnsub = null, trTwistyEl = null;
+function teardownTwistyTimer(){ if (trTwistyUnsub){ trTwistyUnsub(); trTwistyUnsub=null; }
+  if (trTwistyEl){ if (trTwistyEl.parentNode===trainerSimEl) trainerSimEl.innerHTML=''; trTwistyEl=null; } }   // drop the element (frees its WebGL context)
+function buildTwistyTimer(){
+  const cfg = TWISTY_TIMER[trPuzzle]; if (!cfg){ teardownTwistyTimer(); return; }
+  teardownTwistyTimer();
+  const tp = document.createElement('twisty-player');
+  tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','6');
+  tp.style.cssText = 'width:100%;max-width:300px;height:280px;margin:0 auto';
+  if (cfg.tw) tp.setAttribute('puzzle', cfg.tw); else if (cfg.twDesc) tp.experimentalPuzzleDescription = cfg.twDesc;
+  const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
+  if (scr.trim()) { tp.experimentalSetupAlg = scr; tp.alg = ''; }        // show the scrambled state; the user solves it
+  trainerSimEl.innerHTML = ''; trainerSimEl.appendChild(tp); trTwistyEl = tp;
+  // wire move/solve detection once the scramble has settled (skip that first, immediate listener fire)
+  setTimeout(() => {
+    if (trTwistyEl !== tp || !tp.experimentalModel) return;
+    const prop = tp.experimentalModel.currentPattern; let first = true;
+    const listener = (kp) => {
+      if (first) { first = false; return; }                              // ignore the settled (scrambled) position
+      if (trState === 'idle') tryStartSolve();                           // first move starts the timer
+      else if (trState === 'running' && twPatternSolved(kp)) stopSolve();// solved → stop & record
+    };
+    prop.addFreshListener(listener);
+    trTwistyUnsub = () => { try { prop.removeFreshListener(listener); } catch(e){} };
+  }, 600);
+}
 function configTcube() {
   const ok = isRenderable(trPuzzle);
   trView.classList.toggle('no-cube', !ok);
@@ -1226,6 +1259,7 @@ function configTcube() {
   // Cube-interaction options for THIS puzzle
   const P=['physical','Physical — Space timer'], M=['mouse','Virtual — mouse'], K=['keyboard','Virtual — keyboard'];
   let opts = ok ? (CUBE_N[trPuzzle]===3 ? [P,M,K] : [P,M])   // 3×3 cubes: keyboard too; big cubes: mouse only
+              : TWISTY_TIMER[trPuzzle] ? [P, ['virtual','Virtual — 3-D model']]   // interactive cubing.js 3-D model
               : SIM_KEYS[trPuzzle] ? [P, ['virtual','Virtual — mouse & keyboard']]   // 3-D sim (Pyraminx)
               : trPuzzle==='clock' ? [P, ['virtual','Virtual — click & drag']]   // interactive clock
               : trPuzzle==='redi' ? [P, ['virtual','Virtual — click a corner']]   // Redi net: click a corner to twist
@@ -1243,6 +1277,10 @@ function applyCubeMode() {
   trView.classList.toggle('cube-virtual', trCubeMode!=='physical');
   trCubeControls.rebuildMap();
   trCubeControls.setInteract({ drag: ok && trCubeMode==='mouse', keys: ok && trCubeMode==='keyboard' });
+  if (TWISTY_TIMER[trPuzzle]) {                                         // virtual 3-D model timer
+    trView.classList.toggle('has-sim', trCubeMode==='virtual');
+    if (trCubeMode==='virtual') buildTwistyTimer(); else teardownTwistyTimer();
+  } else teardownTwistyTimer();
   updateTrHint();
 }
 function setActive(sel, btn) { document.querySelectorAll('#view-trainer '+sel).forEach(x=>x.classList.toggle('on', x===btn)); }
