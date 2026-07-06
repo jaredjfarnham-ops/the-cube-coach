@@ -1245,7 +1245,7 @@ function buildTwistyTimer(){
   teardownTwistyTimer();
   const tp = document.createElement('twisty-player');
   tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','6');
-  tp.style.cssText = 'width:100%;max-width:300px;height:280px;margin:0 auto';
+  tp.style.cssText = 'width:100%;max-width:300px;height:280px;margin:0 auto;touch-action:none';   // touch-action:none → touch/trackpad drags turn pieces instead of scrolling
   if (cfg.tw) tp.setAttribute('puzzle', cfg.tw); else if (cfg.twDesc) tp.experimentalPuzzleDescription = cfg.twDesc;
   const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
   if (scr.trim()) { try { tp.experimentalSetupAlg = scr; tp.alg = ''; } catch(e){} }   // try the app scramble (a no-op for geometry puzzles)
@@ -1765,7 +1765,7 @@ function playSelect(entry) {
     // NOTE: do NOT set display here — twisty-player needs its default :host{display:grid};
     // forcing display:block collapses its internal grid layout to 0 height (blank 360x0 canvas).
     // margin:0 auto still centres it (grid host is block-level).
-    tp.style.cssText = 'width:100%;max-width:360px;height:340px;margin:0 auto';
+    tp.style.cssText = 'width:100%;max-width:360px;height:340px;margin:0 auto;touch-action:none';   // touch-action:none so touch/trackpad drags turn pieces instead of scrolling the page (cubing's vendored code doesn't set it)
     if (entry.tw) tp.setAttribute('puzzle', entry.tw);                         // cubing registry puzzle
     else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
