@@ -1646,7 +1646,7 @@ const PLAY_PUZZLES = [
   { id:'6x6', name:'6×6', kind:'cube', n:6 }, { id:'7x7', name:'7×7', kind:'cube', n:7 },
   { id:'pyra', name:'Pyraminx', kind:'sim', sim:pyraSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
   { id:'skewb', name:'Skewb', kind:'sim', sim:skewbSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
-  { id:'mega', name:'Megaminx', kind:'sim', sim:megaSim, keys:{ u:'U', l:'L', r:'R', b:'B', f:'F' } },
+  { id:'mega', name:'Megaminx', kind:'twisty', tw:'megaminx', scr:'minx' },   // 3-D cubing model + real WCA scramble (SVG megaSim still used in lessons)
   { id:'sq1', name:'Square-1', kind:'sim', sim:sqSim },     // interactive via drag (sqSim.turnLayer / slash)
   { id:'clock', name:'Clock', kind:'sim', sim:clockSim },   // interactive via clicks/drags (clockSim.turn)
   // ---- Non-WCA: full 3-D interactive models via cubing.js <twisty-player> (tw = cubing puzzle id; scr = scramble event id or null) ----
@@ -1654,7 +1654,7 @@ const PLAY_PUZZLES = [
   { id:'kilo', name:'Kilominx', kind:'twisty', tw:'kilominx', scr:'kilominx' },
   { id:'mpyra', name:'Master Pyraminx', kind:'twisty', tw:'master_tetraminx', scr:'master_tetraminx' },
   { id:'giga', name:'Gigaminx', kind:'twisty', tw:'gigaminx', scr:null },     // no cubing scramble — drag to mix
-  { id:'redi', name:'Redi Cube', kind:'twisty', tw:'redi_cube', scr:null },
+  { id:'redi', name:'Redi Cube', kind:'twisty', twDesc:'c v 0.915641442663986', scr:null },   // redi_cube has no twisty renderer → render as its mechanical twin, the Compy Cube
   // puzzle-geometry models — rendered from a geometry SPEC via experimentalPuzzleDescription.
   // (experimentalPuzzleName silently falls back to a 3x3; only registry names + geometry specs render.)
   // Specs derived from cubing puzzle-geometry: shape + cut-type/distance pairs. No cubing scramble — drag to mix.
