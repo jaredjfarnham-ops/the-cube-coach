@@ -290,7 +290,7 @@ function attachSimPointer(el, getSim, onChange, hooks={}) {
 }
 /* trainer: orbit + click-to-turn for 3-D sims (Pyraminx), driving the timer */
 attachSimPointer(trainerSimEl,
-  () => (SIM[trPuzzle] && SIM[trPuzzle].screenRoles && trCubeMode==='virtual' && !trView.classList.contains('hidden')) ? SIM[trPuzzle] : null,
+  () => (SIM[trPuzzle] && SIM[trPuzzle].screenRoles && trCubeMode==='virtual' && !trView.classList.contains('hidden') && !TWISTY_TIMER[trPuzzle]) ? SIM[trPuzzle] : null,   // Megaminx has an SVG sim too, but in the timer it uses the 3-D twisty — don't let this handler overwrite it
   () => { trainerSimEl.innerHTML = SIM[trPuzzle].svg(); },
   { onTurnStart: () => { tryStartSolve(); },
     onTurn:      () => { if (trState==='running' && SIM[trPuzzle].isSolved()) stopSolve(); } });
@@ -1617,7 +1617,7 @@ function openCategory(catId, wantPz) {
     if (p.fam && p.fam !== lastFam) { lastFam = p.fam;              // SpeedCubeShop-style family headers (Non-WCA submenu)
       const h = document.createElement('div'); h.className='cat-fam-head'; h.textContent = p.fam; left.appendChild(h); }
     const b = document.createElement('button'); b.className='cat-pz'+(pid===activePz?' active':''); b.dataset.pz=pid;
-    b.innerHTML = `${iconHTML(pid,'')}<span>${shortName(p.name)}</span>`;
+    b.innerHTML = `${iconHTML(pid,'')}<span>${p.fam ? p.name : shortName(p.name)}</span>`;   // Non-WCA (fam) puzzles keep their shape name — several share an NxN size (two "4×4"s), so "4×4" alone is ambiguous
     const activate = () => { left.querySelectorAll('.cat-pz').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderMethods(right, pid); };
     b.addEventListener('mouseenter', activate);
     b.addEventListener('click', activate);
