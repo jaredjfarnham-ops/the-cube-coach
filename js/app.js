@@ -1784,14 +1784,15 @@ function playSelect(entry) {
     : entry.id==='sq1'   ? 'Drag the <b>top</b> or <b>bottom</b> layer to rotate it (snaps to 30°); <b>click the middle band</b> (or press <b>/</b>) to slash. Drag the <b>background</b> to rotate the view. <b>Del</b> resets.'
     :                      'Click a <b>pin</b> to raise/lower it (on either face), then <b>drag a corner clock</b> to turn it and the pinned clocks. <b>Del</b> resets.';
   if (isSim) { playControls.setInteract({}); entry.sim.reset(); renderSim(); }
-  else { playN = entry.n; playCube.rebuild({ N:playN }); playControls.setInteract({ drag:true, keys:true }); }
+  else { playSimEl.innerHTML=''; playN = entry.n; playCube.rebuild({ N:playN }); playControls.setInteract({ drag:true, keys:true }); }   // clear any leftover twisty-player (frees its WebGL context)
   updateStatus();
 }
 function playScramble() {
   if (busy) return;
-  if (playEntry.kind==='twisty') {                          // scramble the 3-D model (where cubing.js supports it)
+  if (playEntry.kind==='twisty') {                          // scramble the 3-D model
     const tp = playSimEl.querySelector('twisty-player'); if (!tp) return;
     if (playEntry.scr && window.wcaScramble) window.wcaScramble(playEntry.scr).then(s => { tp.experimentalSetupAlg = s; tp.alg = ''; playScrText.textContent = showMoves(s.split(/\s+/)); });
+    else if (tp.experimentalModel) tp.experimentalModel.currentPattern.get().then(kp => { const own = randomModelScramble(kp.kpuzzle); if (own) { tp.experimentalSetupAlg = own; tp.alg = ''; } }).catch(()=>{});   // no cubing scramble → self-scramble with the model's own moves
     playStatus.textContent='Scrambled'; playStatus.classList.remove('solved'); return;
   }
   if (playEntry.kind==='cube') { const seq=fullScramble(playN); playCube.reset(); playCube.applyInstant(seq); playHist=[]; playScrText.textContent=showMoves(seq); }
@@ -1811,11 +1812,14 @@ playSel.addEventListener('change', e => playSelect(PLAY_PUZZLES.find(p => p.id==
 document.getElementById('playScramble').onclick = playScramble;
 document.getElementById('playUndo').onclick = playUndo;
 document.getElementById('playReset').onclick = () => { if (busy) return;
-  if (playEntry.kind==='cube') playCube.reset(); else { playEntry.sim.reset(); renderSim(); }
+  if (playEntry.kind==='cube') playCube.reset();
+  else if (playEntry.kind==='twisty') { const tp=playSimEl.querySelector('twisty-player'); if (tp) { tp.experimentalSetupAlg=''; tp.alg=''; } }   // 3-D model → back to solved
+  else { playEntry.sim.reset(); renderSim(); }
   playHist=[]; playScrText.textContent=''; updateStatus(); };
 document.getElementById('playRecenter').onclick = () => {
   if (playEntry.kind==='cube') playControls.recenter();
-  else if (playEntry.sim.recenter) { playEntry.sim.recenter(); renderSim(); }
+  else if (playEntry.kind==='twisty') { /* the 3-D model auto-centres — nothing to recentre */ }
+  else if (playEntry.sim && playEntry.sim.recenter) { playEntry.sim.recenter(); renderSim(); }
 };
 /* keyboard for SIM puzzles in the playground (Pyraminx: camera-relative faces + Alt = tips) */
 document.addEventListener('keydown', e => {
@@ -2050,13 +2054,15 @@ function statsDeepPanel(sel) {
   if (statsSubMs==null && ms.mean) statsSubMs=Math.max(1000, Math.round(ms.mean/1000)*1000);
   if (document.activeElement!==subInput) subInput.value = statsSubMs ? (statsSubMs/1000) : '';
   const sub=statsSubMs, subCount=sub?singles.filter(x=>x<=sub).length:0, subPct=valid?subCount/valid*100:0;
+  const isCount = /(?:^|:)fmc(?::|$)/.test(sel.id || '');   // FMC stores a move COUNT, not a time
+  const fA = x => (x==null) ? '—' : x==='dnf' ? 'DNF' : (isCount ? String(Math.round(x)) : fmt(x));
   const cards=[];
-  cards.push({l:'Best single', v:fmtA(best)});
-  cards.push({l:'Mean', v:fmtA(ms.mean), s:valid+' valid'});
-  cards.push({l:'σ spread', v:ms.sd==null?'—':fmt(ms.sd)});
-  cards.push({l:'Worst single', v:fmtA(worst)});
+  cards.push({l:'Best single', v:fA(best)});
+  cards.push({l:'Mean', v:fA(ms.mean), s:valid+' valid'});
+  cards.push({l:'σ spread', v:ms.sd==null?'—':(isCount?ms.sd.toFixed(1):fmt(ms.sd))});
+  cards.push({l:'Worst single', v:fA(worst)});
   [['Ao5',5],['Ao12',12],['Ao50',50],['Ao100',100]].forEach(([l,k])=>{
-    if (n>=k) { const r=rollingAo(solves,k); cards.push({l:'Best '+l, v:fmtA(r.best), s:'now '+fmtA(r.cur)}); } });
+    if (n>=k) { const r=rollingAo(solves,k); cards.push({l:'Best '+l, v:fA(r.best), s:'now '+fA(r.cur)}); } });
   cards.push({l:'Sub-'+(sub/1000)+'s', v:subPct.toFixed(0)+'%', s:subCount+' of '+valid});
   cards.push({l:'DNF rate', v:(n?(dnf/n*100).toFixed(0):'0')+'%', s:dnf+' of '+n, dnf:dnf>0});
   deepEl.innerHTML = cards.map(c=>`<div class="deep-card"><div class="dc-lbl">${c.l}</div><div class="dc-val${c.dnf?' dnf':''}">${c.v}</div>${c.s?`<div class="dc-sub">${c.s}</div>`:''}</div>`).join('');
