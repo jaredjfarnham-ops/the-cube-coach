@@ -1221,10 +1221,21 @@ const isRenderable = p => Object.prototype.hasOwnProperty.call(CUBE_N, p);
 const isLLstep = () => trMode==='step' && (trKind==='oll' || trKind==='pll');
 
 /* ---- Virtual 3-D timer: an interactive cubing.js model you solve on screen. Auto-starts on the first
-   move and auto-stops when solved (via experimentalModel.currentPattern + a solved check). Only offered
-   for puzzles with a real cubing scramble the model can apply, so the scramble & sim always agree. ---- */
-const TWISTY_TIMER = { fto:{tw:'fto'}, kilo:{tw:'kilominx'}, mpyra:{tw:'master_tetraminx'}, mega:{tw:'megaminx'} };
+   move and auto-stops when solved (via experimentalModel.currentPattern + a solved check). Offered for
+   every non-WCA puzzle that has a 3-D model — TWISTY_TIMER is filled from PLAY_PUZZLES (twisty entries)
+   after that list is defined. ---- */
+const TWISTY_TIMER = {};   // id -> { tw | twDesc }
 function twPatternSolved(kp){ try { return kp.experimentalIsSolved({ ignorePuzzleOrientation:true, ignoreCenterOrientation:true }); } catch(e){ return kp.isIdentical(kp.kpuzzle.defaultPattern()); } }
+/* A random scramble in a MODEL's own move notation, for geometry puzzles whose app-text scramble the
+   model can't parse. Skips whole-puzzle rotations (names ending in 'v') and avoids repeating a move. */
+function randomModelScramble(kpuzzle){
+  const moves = (kpuzzle && kpuzzle.definition && kpuzzle.definition.moves) || {};
+  const names = Object.keys(moves).filter(n => !/v$/.test(n));
+  if (!names.length) return '';
+  const seq = []; let last = '';
+  for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
+  return seq.join(' ');
+}
 let trTwistyUnsub = null, trTwistyEl = null;
 function teardownTwistyTimer(){ if (trTwistyUnsub){ trTwistyUnsub(); trTwistyUnsub=null; }
   if (trTwistyEl){ if (trTwistyEl.parentNode===trainerSimEl) trainerSimEl.innerHTML=''; trTwistyEl=null; } }   // drop the element (frees its WebGL context)
@@ -1236,20 +1247,30 @@ function buildTwistyTimer(){
   tp.style.cssText = 'width:100%;max-width:300px;height:280px;margin:0 auto';
   if (cfg.tw) tp.setAttribute('puzzle', cfg.tw); else if (cfg.twDesc) tp.experimentalPuzzleDescription = cfg.twDesc;
   const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
-  if (scr.trim()) { tp.experimentalSetupAlg = scr; tp.alg = ''; }        // show the scrambled state; the user solves it
+  if (scr.trim()) { try { tp.experimentalSetupAlg = scr; tp.alg = ''; } catch(e){} }   // try the app scramble (a no-op for geometry puzzles)
   trainerSimEl.innerHTML = ''; trainerSimEl.appendChild(tp); trTwistyEl = tp;
-  // wire move/solve detection once the scramble has settled (skip that first, immediate listener fire)
-  setTimeout(() => {
-    if (trTwistyEl !== tp || !tp.experimentalModel) return;
+  const mine = tp;
+  setTimeout(async () => {
+    if (trTwistyEl !== mine || !tp.experimentalModel) return;
+    try {                                                                // if the app scramble was a no-op, self-scramble with the model's own moves
+      const kp = await tp.experimentalModel.currentPattern.get();
+      if (trTwistyEl !== mine) return;
+      if (kp.isIdentical(kp.kpuzzle.defaultPattern())) {
+        const own = randomModelScramble(kp.kpuzzle);
+        if (own) { tp.experimentalSetupAlg = own; tp.alg = ''; await new Promise(r=>setTimeout(r,450)); }
+      }
+    } catch(e){}
+    if (trTwistyEl !== mine || !tp.experimentalModel) return;
+    // wire move/solve detection (skip the first, immediate listener fire = the settled scrambled position)
     const prop = tp.experimentalModel.currentPattern; let first = true;
     const listener = (kp) => {
-      if (first) { first = false; return; }                              // ignore the settled (scrambled) position
+      if (first) { first = false; return; }
       if (trState === 'idle') tryStartSolve();                           // first move starts the timer
       else if (trState === 'running' && twPatternSolved(kp)) stopSolve();// solved → stop & record
     };
     prop.addFreshListener(listener);
     trTwistyUnsub = () => { try { prop.removeFreshListener(listener); } catch(e){} };
-  }, 600);
+  }, 700);
 }
 function configTcube() {
   const ok = isRenderable(trPuzzle);
@@ -1703,6 +1724,10 @@ const PLAY_PUZZLES = [
   { id:'cto', name:'CTO', kind:'twisty', twDesc:'o v 0.433012701892219', scr:null },   // corner-turning octahedron (Trajber's)
   { id:'eliteskewb', name:'Elite Skewb', kind:'twisty', twDesc:'c v 0 v 0.38', scr:null },   // order-4 skewb (cubing: "professor skewb")
 ];
+// Every non-WCA puzzle with a 3-D model gets the virtual-timer option (self-scrambled when the app text
+// scramble isn't in the model's own notation). Pyramorphix renders as a 2×2 (cube engine); Master/Elite
+// Kilominx and 7×7 Skewb have no cubing model, so they stay physical-only.
+PLAY_PUZZLES.forEach(p => { if (p.kind==='twisty') TWISTY_TIMER[p.id] = { tw:p.tw, twDesc:p.twDesc }; });
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
   isActive: () => !playView.classList.contains('hidden') && playEntry && playEntry.kind==='cube' && playN===3,
@@ -1868,7 +1893,7 @@ function openStats() {
 /* ---- Universal Timer: a top-level tab running any event's full-solve timer (no per-step Mode selector).
    Reuses the whole trainer view; solves share each event's existing 'timer:<event>:solve' history. ---- */
 const TIMER_EVENTS = PUZZLES.filter(p => p.methods.some(m => m.id==='timer' && (m.items||[]).some(i => i.id==='solve')))
-                            .map(p => ({ id:p.id, name:shortName(p.name) }));
+                            .map(p => ({ id:p.id, name: p.fam ? p.name : shortName(p.name) }));   // Non-WCA keep their shape name (several share an NxN size)
 let timerEvent = '3x3';
 function loadTimerEvent(ev) {
   timerEvent = ev;
