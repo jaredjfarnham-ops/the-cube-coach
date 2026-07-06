@@ -1178,6 +1178,7 @@ function startInspection() { trState='inspecting'; trInspStart=performance.now()
 function inspTick() { const left = 15 - (performance.now()-trInspStart)/1000; trTimerEl.textContent = left<=0 ? '+'+(-left).toFixed(1) : left.toFixed(1); trInspRAF = requestAnimationFrame(inspTick); }
 function endInspection() { const insp = (performance.now()-trInspStart)/1000; cancelAnimationFrame(trInspRAF); trPenalty = insp>17 ? 'dnf' : insp>15 ? 2000 : 0; startSolve(); }
 function stopSolve() {
+  if (trState !== 'running') return;   // ignore duplicate/late stops (e.g. several deferred twisty solved-fires queued before the first runs)
   cancelAnimationFrame(trRAF); trState='idle'; trTimerEl.classList.remove('armed');
   trCooldownUntil = performance.now() + 1000;   // ignore solve-starts for 1s (mouse is often still down through the reset)
   const rawMs = performance.now()-trStart;
@@ -1261,12 +1262,16 @@ function buildTwistyTimer(){
       }
     } catch(e){}
     if (trTwistyEl !== mine || !tp.experimentalModel) return;
-    // wire move/solve detection (skip the first, immediate listener fire = the settled scrambled position)
-    const prop = tp.experimentalModel.currentPattern; let first = true;
+    const prop = tp.experimentalModel.currentPattern;
+    // Baseline = the settled scrambled position. Start the timer only when the position actually CHANGES
+    // from it (a real move) — robust against extra scramble-settle fires, not just skipping the first one.
+    // Defer stopSolve out of the listener dispatch: stopSolve -> newScramble -> buildTwistyTimer would
+    // remove THIS listener (and drop the player) mid-callback.
+    let baseline = null; try { baseline = await prop.get(); } catch(e){}
+    if (trTwistyEl !== mine) return;
     const listener = (kp) => {
-      if (first) { first = false; return; }
-      if (trState === 'idle') tryStartSolve();                           // first move starts the timer
-      else if (trState === 'running' && twPatternSolved(kp)) stopSolve();// solved → stop & record
+      if (trState === 'idle') { if (!baseline || !kp.isIdentical(baseline)) tryStartSolve(); }   // first real move starts the clock
+      else if (trState === 'running' && twPatternSolved(kp)) setTimeout(stopSolve, 0);            // solved → stop (deferred)
     };
     prop.addFreshListener(listener);
     trTwistyUnsub = () => { try { prop.removeFreshListener(listener); } catch(e){} };
@@ -1283,8 +1288,8 @@ function configTcube() {
               : TWISTY_TIMER[trPuzzle] ? [P, ['virtual','Virtual — 3-D model']]   // interactive cubing.js 3-D model
               : SIM_KEYS[trPuzzle] ? [P, ['virtual','Virtual — mouse & keyboard']]   // 3-D sim (Pyraminx)
               : trPuzzle==='clock' ? [P, ['virtual','Virtual — click & drag']]   // interactive clock
-              : trPuzzle==='redi' ? [P, ['virtual','Virtual — click a corner']]   // Redi net: click a corner to twist
               : null;                                         // display-only sim (Square-1/Megaminx)
+              // NB: Redi is a twisty timer (handled by TWISTY_TIMER above) → it gets the 3-D model, not the old SVG-net mode
   const row = document.getElementById('trCubeRow'), sel = document.getElementById('trCubeMode');
   row.style.display = opts ? '' : 'none';
   if (opts) { sel.innerHTML = opts.map(o => `<option value="${o[0]}">${o[1]}</option>`).join('');
@@ -1654,7 +1659,12 @@ document.addEventListener('click', e => { if (!megawrap.contains(e.target)) clos
 document.addEventListener('keydown', e => { if (e.key==='Escape') closePanel(); });
 
 const VIEWS = ['view-home','view-notation','view-lesson','view-sheet','view-trainer','view-placeholder','view-play','view-stats'];
-const show = id => VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
+const show = id => {
+  if (id !== 'view-trainer' && (trTwistyEl || trState !== 'idle')) {   // leaving the timer → stop it & free the 3-D model (no leaked WebGL context or stuck 'running' state)
+    teardownTwistyTimer(); cancelAnimationFrame(trRAF); trState='idle'; trTimerEl.classList.remove('armed','inspecting');
+  }
+  VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
+};
 
 function goHome() { homeMode=true; statsMode=false; timerMode=false; closePanel(); document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected')); crumb.innerHTML='<b>Home</b>'; renderHome(); show('view-home'); }
 function select(pId,mId,iId) { homeMode=false; statsMode=false; timerMode=false; cur={p:pId,m:mId,i:iId}; render(); closePanel(); }
