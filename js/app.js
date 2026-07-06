@@ -1237,6 +1237,25 @@ function randomModelScramble(kpuzzle){
   for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
   return seq.join(' ');
 }
+/* cubing's twisty-player only ORBITS the camera on drag — it has no drag-to-turn for these shapes. So give
+   each 3-D model clickable move buttons (its outer-layer moves). Click = the move, Shift = reverse (′). In
+   the timer these drive solve-detection automatically (experimentalAddMove changes currentPattern). */
+function renderTwistyMoves(tp, containerEl, onMove){
+  containerEl.innerHTML='';
+  if (!tp || !tp.experimentalModel) return;
+  tp.experimentalModel.currentPattern.get().then(kp => {
+    const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
+      .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers only (drop inner 2U/3U… and rotations …v)
+    if (!names.length) return;
+    const bar=document.createElement('div'); bar.className='tw-moves';
+    names.forEach(n => { const b=document.createElement('button'); b.className='tw-move'; b.textContent=n; b.title=`${n}  ·  Shift = ${n}′`;
+      b.addEventListener('click', e => { try { tp.experimentalAddMove(e.shiftKey ? n+"'" : n); } catch(_){} if (onMove) onMove(); });
+      bar.appendChild(b); });
+    containerEl.appendChild(bar);
+    const hint=document.createElement('div'); hint.className='tw-moves-hint'; hint.innerHTML='Tap a move to turn · <b>Shift</b> = reverse (′) · drag the puzzle to rotate the view';
+    containerEl.appendChild(hint);
+  }).catch(()=>{});
+}
 let trTwistyUnsub = null, trTwistyEl = null;
 function teardownTwistyTimer(){ if (trTwistyUnsub){ trTwistyUnsub(); trTwistyUnsub=null; }
   if (trTwistyEl){ if (trTwistyEl.parentNode===trainerSimEl) trainerSimEl.innerHTML=''; trTwistyEl=null; } }   // drop the element (frees its WebGL context)
@@ -1250,6 +1269,7 @@ function buildTwistyTimer(){
   const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
   if (scr.trim()) { try { tp.experimentalSetupAlg = scr; tp.alg = ''; } catch(e){} }   // try the app scramble (a no-op for geometry puzzles)
   trainerSimEl.innerHTML = ''; trainerSimEl.appendChild(tp); trTwistyEl = tp;
+  const mw = document.createElement('div'); trainerSimEl.appendChild(mw); renderTwistyMoves(tp, mw);   // move buttons (solve the model on screen)
   const mine = tp;
   setTimeout(async () => {
     if (trTwistyEl !== mine || !tp.experimentalModel) return;
@@ -1758,8 +1778,7 @@ function playSelect(entry) {
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
     playControls.setInteract({});
-    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag the puzzle</b> to rotate the view, and <b>drag a sticker</b> to turn it.'
-      + (entry.scr ? ' Use <b>Scramble</b> to shuffle.' : ' (No auto-scramble for this one yet — drag to mix it up.)');
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag</b> to rotate the view; use the <b>move buttons</b> below to turn it. Use <b>Scramble</b> to shuffle.';
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
     // NOTE: do NOT set display here — twisty-player needs its default :host{display:grid};
@@ -1770,6 +1789,7 @@ function playSelect(entry) {
     else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
     playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
+    const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw);   // clickable move buttons (no drag-to-turn for these shapes)
     playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
     return;
   }
