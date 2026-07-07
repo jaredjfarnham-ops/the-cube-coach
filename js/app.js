@@ -1172,7 +1172,9 @@ function reloadTimes() { trSolves = getSolves(statsKey()); renderStats(); render
 function tick() { trTimerEl.textContent = PREFS.hideTimer ? 'solving…' : fmt(performance.now()-trStart); trRAF = requestAnimationFrame(tick); }
 let trInspStart=0, trInspRAF=0, trPenalty=0;
 let trCooldownUntil = 0;   // brief lockout after a solve so a still-held mouse can't auto-start the next virtual solve on reset
-function startSolve() { trState='running'; trStart=performance.now(); trTimerEl.classList.remove('armed','inspecting'); tick(); }
+function startSolve() {
+  const ae=document.activeElement; if (ae && ae!==document.body && ae.blur) ae.blur();   // drop focus off the Event/Mode dropdowns so a sloppy stop can't type-ahead-switch the puzzle (which would reset trState and lose the solve)
+  trState='running'; trStart=performance.now(); trTimerEl.classList.remove('armed','inspecting'); tick(); }
 function tryStartSolve() { if (trState!=='idle' || performance.now() < trCooldownUntil) return; startSolve(); }   // virtual-solve start, gated by the post-solve cooldown
 function startInspection() { trState='inspecting'; trInspStart=performance.now(); trTimerEl.classList.remove('armed'); trTimerEl.classList.add('inspecting'); inspTick(); }
 function inspTick() { const left = 15 - (performance.now()-trInspStart)/1000; trTimerEl.textContent = left<=0 ? '+'+(-left).toFixed(1) : left.toFixed(1); trInspRAF = requestAnimationFrame(inspTick); }
@@ -2011,7 +2013,7 @@ function openTimer() {
 (function initTimerDropdown(){
   const sel=document.getElementById('trEvent'); if (!sel) return;
   sel.innerHTML = TIMER_EVENTS.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
-  sel.addEventListener('change', e => loadTimerEvent(e.target.value));
+  sel.addEventListener('change', e => { loadTimerEvent(e.target.value); e.target.blur(); });   // blur so the dropdown can't keep focus and swallow timer keystrokes (type-ahead switching events mid-solve)
 })();
 
 /* ================================================================
