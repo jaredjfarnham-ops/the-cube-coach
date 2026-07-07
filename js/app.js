@@ -1239,10 +1239,11 @@ function randomModelScramble(kpuzzle){
   for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
   return seq.join(' ');
 }
-/* Puzzles whose free-orbit snaps to a clean rotation when you let go of a drag. For FTO we lift cubing's
-   default ±35° latitude clamp (latLimit) so you can tilt all the way and bring ANY face to the top; on
-   release the longitude snaps to 45° while the tilt stays where you left it. */
-const TW_CAM_SNAP = { fto: { init:{latitude:20,longitude:0}, longStep:45, latLimit:90,
+/* Per-puzzle camera config for the 3-D models. For FTO we lift cubing's default ±35° latitude clamp
+   (latLimit:90) so the camera can orbit the full sphere freely — no snap on release — and map the arrow
+   keys to whole-puzzle rotations (rotKeys) for setting a specific face as the top. */
+const TW_CAM_SNAP = { fto: { init:{latitude:20,longitude:0}, latLimit:90,
+  // Camera fully unlocked: full latitude (±90) and NO longitude snap on release — drag orbits freely to any angle.
   // arrow-key reorientation. Face-axis rotations alone only reach half the orientations (tetrahedral
   // orbit), so include F_Rv/F_Lv (edge-axis) — with Dv/Lv these reach EVERY orientation, incl. yellow-top.
   rotKeys:{ ArrowUp:'F_Rv', ArrowDown:'F_Lv', ArrowLeft:'Dv', ArrowRight:'Lv' } } };
