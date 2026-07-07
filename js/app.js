@@ -1260,8 +1260,9 @@ function renderTwistyMoves(tp, containerEl, opts){
     const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
       .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers (drop inner 2U/3U… and rotations …v)
     tp._twMoves = names;                                           // for keyboard turning (single-letter face keys)
+    tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys)
     const hint=document.createElement('div'); hint.className='tw-moves-hint';
-    hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to rotate the view · or press a face key (Shift = reverse)';
+    hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to rotate the view · <b>arrow keys</b> reorient the puzzle · or a face key (Shift = reverse)';
     containerEl.appendChild(hint);
   }).catch(()=>{});
 }
@@ -1275,10 +1276,17 @@ function activeTwisty(){
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
-  if (e.key.length !== 1) return;
-  const tp = activeTwisty(); if (!tp || !tp._twMoves) return;
-  const key = e.key.toUpperCase();
-  const mv = tp._twMoves.find(n => n.toUpperCase() === key);   // single-letter moves only (multi-letter → buttons)
+  const tp = activeTwisty(); if (!tp) return;
+  // Arrow keys reorient the WHOLE puzzle (so any face can be brought to the top). Playground only —
+  // a reorientation would otherwise break the timer's exact solved-check.
+  if (/^Arrow/.test(e.key) && tp._twRots && tp._twRots.length && !playView.classList.contains('hidden') && playEntry && playEntry.kind==='twisty') {
+    const rot = tp._twRots[{ ArrowUp:0, ArrowRight:1, ArrowDown:2, ArrowLeft:3 }[e.key] % tp._twRots.length];
+    if (rot) { e.preventDefault(); try { tp.experimentalAddMove(rot); } catch(_){} }
+    return;
+  }
+  // single-letter key = that face move; Shift = reverse (multi-letter moves stay mouse-only)
+  if (e.key.length !== 1 || !tp._twMoves) return;
+  const mv = tp._twMoves.find(n => n.toUpperCase() === e.key.toUpperCase());
   if (!mv) return;
   e.preventDefault();
   try { tp.experimentalAddMove(e.shiftKey ? mv + "'" : mv); } catch(_){}
@@ -1812,7 +1820,7 @@ function playSelect(entry) {
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
     playControls.setInteract({});
-    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Click a piece</b> to turn it (right-click reverses); <b>drag</b> to rotate the view. Use <b>Scramble</b> to shuffle.';
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Click a piece</b> to turn it (right-click reverses); <b>drag</b> to rotate the view; <b>arrow keys</b> reorient the whole puzzle. Use <b>Scramble</b> to shuffle.';
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
     tp.experimentalMovePressInput = 'basic';                       // enable mouse turning: drag/click a piece to turn it
