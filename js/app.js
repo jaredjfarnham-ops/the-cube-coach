@@ -1237,13 +1237,13 @@ function randomModelScramble(kpuzzle){
   for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
   return seq.join(' ');
 }
-/* Puzzles whose free-orbit snaps to a clean orientation when you let go of a drag. FTO's latitude clamps
-   to ±35°, so snap latitude to a vertex band (±35) or the face band (0) and align longitude to 45° — you
-   always settle on a clean vertex-front or face-front view. */
-const TW_CAM_SNAP = { fto: { init:{latitude:0,longitude:0}, lats:[-35,0,35], longStep:45 } };
+/* Puzzles whose free-orbit snaps to a clean rotation when you let go of a drag. For FTO we lift cubing's
+   default ±35° latitude clamp (latLimit) so you can tilt all the way and bring ANY face to the top; on
+   release the longitude snaps to 45° while the tilt stays where you left it. */
+const TW_CAM_SNAP = { fto: { init:{latitude:20,longitude:0}, longStep:45, latLimit:90 } };
 function snapTwistyOrbit(snap, o){
-  const lat = snap.lats.reduce((a,b) => Math.abs(b-o.latitude) < Math.abs(a-o.latitude) ? b : a);
-  const long = ((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360 + 360) % 360;
+  const lat  = snap.lats ? snap.lats.reduce((a,b) => Math.abs(b-o.latitude) < Math.abs(a-o.latitude) ? b : a) : o.latitude;
+  const long = snap.longStep ? (((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360) + 360) % 360 : o.longitude;
   return { latitude: lat, longitude: long };
 }
 /* Set up the interactive controls for a 3-D model: mouse turning is cubing's built-in move-press
@@ -1253,7 +1253,8 @@ function renderTwistyMoves(tp, containerEl, opts){
   opts = opts || {};
   containerEl.innerHTML='';
   if (!tp || !tp.experimentalModel) return;
-  if (opts.snap){ tp._twSnap = opts.snap;                          // snap free-orbit to clean vertex/face views on release
+  if (opts.snap){ tp._twSnap = opts.snap;                          // snap free-orbit on release
+    if (opts.snap.latLimit) { try { tp.cameraLatitudeLimit = opts.snap.latLimit; } catch(_){} }   // lift the ±35° clamp so any face reaches the top
     try { tp.experimentalModel.twistySceneModel.orbitCoordinatesRequest.set(opts.snap.init); } catch(_){} }
   tp.experimentalModel.currentPattern.get().then(kp => {
     const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
