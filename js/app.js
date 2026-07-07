@@ -1240,7 +1240,10 @@ function randomModelScramble(kpuzzle){
 /* Puzzles whose free-orbit snaps to a clean rotation when you let go of a drag. For FTO we lift cubing's
    default ±35° latitude clamp (latLimit) so you can tilt all the way and bring ANY face to the top; on
    release the longitude snaps to 45° while the tilt stays where you left it. */
-const TW_CAM_SNAP = { fto: { init:{latitude:20,longitude:0}, longStep:45, latLimit:90 } };
+const TW_CAM_SNAP = { fto: { init:{latitude:20,longitude:0}, longStep:45, latLimit:90,
+  // arrow-key reorientation. Face-axis rotations alone only reach half the orientations (tetrahedral
+  // orbit), so include F_Rv/F_Lv (edge-axis) — with Dv/Lv these reach EVERY orientation, incl. yellow-top.
+  rotKeys:{ ArrowUp:'F_Rv', ArrowDown:'F_Lv', ArrowLeft:'Dv', ArrowRight:'Lv' } } };
 function snapTwistyOrbit(snap, o){
   const lat  = snap.lats ? snap.lats.reduce((a,b) => Math.abs(b-o.latitude) < Math.abs(a-o.latitude) ? b : a) : o.latitude;
   const long = snap.longStep ? (((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360) + 360) % 360 : o.longitude;
@@ -1260,7 +1263,8 @@ function renderTwistyMoves(tp, containerEl, opts){
     const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
       .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers (drop inner 2U/3U… and rotations …v)
     tp._twMoves = names;                                           // for keyboard turning (single-letter face keys)
-    tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys)
+    tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys, generic fallback)
+    tp._twArrows = (opts.snap && opts.snap.rotKeys) || null;       // explicit per-puzzle arrow→rotation map (FTO)
     const hint=document.createElement('div'); hint.className='tw-moves-hint';
     hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to rotate the view · <b>arrow keys</b> reorient the puzzle · or a face key (Shift = reverse)';
     containerEl.appendChild(hint);
@@ -1279,8 +1283,9 @@ document.addEventListener('keydown', e => {
   const tp = activeTwisty(); if (!tp) return;
   // Arrow keys reorient the WHOLE puzzle (so any face can be brought to the top). Playground only —
   // a reorientation would otherwise break the timer's exact solved-check.
-  if (/^Arrow/.test(e.key) && tp._twRots && tp._twRots.length && !playView.classList.contains('hidden') && playEntry && playEntry.kind==='twisty') {
-    const rot = tp._twRots[{ ArrowUp:0, ArrowRight:1, ArrowDown:2, ArrowLeft:3 }[e.key] % tp._twRots.length];
+  if (/^Arrow/.test(e.key) && !playView.classList.contains('hidden') && playEntry && playEntry.kind==='twisty') {
+    const rot = (tp._twArrows && tp._twArrows[e.key])              // explicit map (reaches every orientation)
+      || (tp._twRots && tp._twRots.length && tp._twRots[{ ArrowUp:0, ArrowRight:1, ArrowDown:2, ArrowLeft:3 }[e.key] % tp._twRots.length]);   // generic fallback
     if (rot) { e.preventDefault(); try { tp.experimentalAddMove(rot); } catch(_){} }
     return;
   }
