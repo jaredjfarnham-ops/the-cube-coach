@@ -125,11 +125,8 @@
   .move:hover { background: var(--panel-2); border-color: var(--accent); transform: translateY(-1px); }
   .move.active { background: var(--accent); border-color: var(--accent); color: #06122e; }
 
-  /* clickable move buttons for the 3-D twisty models (cubing has no drag-to-turn for these shapes) */
-  .tw-moves { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-width: 360px; margin: 10px auto 0; }
-  .tw-move { background: var(--panel-2); border: 1px solid #313a6b; color: var(--text); font: 600 12.5px 'Consolas', monospace; min-width: 30px; padding: 5px 8px; border-radius: 7px; cursor: pointer; transition: background .12s, border-color .12s; }
-  .tw-move:hover { background: var(--accent); border-color: var(--accent); color: #06122e; }
-  .tw-moves-hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  /* interaction hint under the 3-D twisty models */
+  .tw-moves-hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 10px; }
 
   /* algorithm chips inside lesson text */
   .alg-list { margin: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; }

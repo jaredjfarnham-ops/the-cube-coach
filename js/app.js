@@ -1246,9 +1246,9 @@ function snapTwistyOrbit(snap, o){
   const long = ((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360 + 360) % 360;
   return { latitude: lat, longitude: long };
 }
-/* cubing's twisty-player only ORBITS the camera on drag — it has no drag-to-turn for these shapes. So give
-   each 3-D model clickable move buttons (its outer-layer moves). Click = the move, Shift = reverse (′). In
-   the timer these drive solve-detection automatically (experimentalAddMove changes currentPattern). */
+/* Set up the interactive controls for a 3-D model: mouse turning is cubing's built-in move-press
+   (enabled via experimentalMovePressInput='basic' on the element — drag a piece to turn it, drag the
+   background to rotate), plus optional orbit-snap and single-letter keyboard turning. */
 function renderTwistyMoves(tp, containerEl, opts){
   opts = opts || {};
   containerEl.innerHTML='';
@@ -1257,15 +1257,10 @@ function renderTwistyMoves(tp, containerEl, opts){
     try { tp.experimentalModel.twistySceneModel.orbitCoordinatesRequest.set(opts.snap.init); } catch(_){} }
   tp.experimentalModel.currentPattern.get().then(kp => {
     const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
-      .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers only (drop inner 2U/3U… and rotations …v)
-    if (!names.length) return;
-    tp._twMoves = names;                                           // for keyboard turning (single-letter moves)
-    const bar=document.createElement('div'); bar.className='tw-moves';
-    names.forEach(n => { const b=document.createElement('button'); b.className='tw-move'; b.textContent=n; b.title=`${n}  ·  Shift = ${n}′`;
-      b.addEventListener('click', e => { try { tp.experimentalAddMove(e.shiftKey ? n+"'" : n); } catch(_){} });
-      bar.appendChild(b); });
-    containerEl.appendChild(bar);
-    const hint=document.createElement('div'); hint.className='tw-moves-hint'; hint.innerHTML='Tap a move (or press its key) to turn · <b>Shift</b> = reverse (′) · drag the puzzle to rotate the view';
+      .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers (drop inner 2U/3U… and rotations …v)
+    tp._twMoves = names;                                           // for keyboard turning (single-letter face keys)
+    const hint=document.createElement('div'); hint.className='tw-moves-hint';
+    hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to rotate the view · or press a face key (Shift = reverse)';
     containerEl.appendChild(hint);
   }).catch(()=>{});
 }
@@ -1301,6 +1296,7 @@ function buildTwistyTimer(){
   teardownTwistyTimer();
   const tp = document.createElement('twisty-player');
   tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','6');
+  tp.experimentalMovePressInput = 'basic';                         // mouse turning: drag/click a piece to turn it
   tp.style.cssText = 'width:100%;max-width:300px;height:280px;margin:0 auto;touch-action:none';   // touch-action:none → touch/trackpad drags turn pieces instead of scrolling
   if (cfg.tw) tp.setAttribute('puzzle', cfg.tw); else if (cfg.twDesc) tp.experimentalPuzzleDescription = cfg.twDesc;
   const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
@@ -1815,9 +1811,10 @@ function playSelect(entry) {
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
     playControls.setInteract({});
-    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag</b> to rotate the view; use the <b>move buttons</b> below to turn it. Use <b>Scramble</b> to shuffle.';
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Click a piece</b> to turn it (right-click reverses); <b>drag</b> to rotate the view. Use <b>Scramble</b> to shuffle.';
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
+    tp.experimentalMovePressInput = 'basic';                       // enable mouse turning: drag/click a piece to turn it
     // NOTE: do NOT set display here — twisty-player needs its default :host{display:grid};
     // forcing display:block collapses its internal grid layout to 0 height (blank 360x0 canvas).
     // margin:0 auto still centres it (grid host is block-level).
