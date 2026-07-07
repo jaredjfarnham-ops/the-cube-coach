@@ -1237,10 +1237,15 @@ function randomModelScramble(kpuzzle){
   for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
   return seq.join(' ');
 }
-/* camera locks per puzzle: FTO can be viewed/solved with a vertex toward you or a face toward you. */
-const TW_CAM_PRESETS = {
-  fto: [['◆ Vertex', {latitude:60, longitude:0}], ['▲ Face', {latitude:0, longitude:0}]],
-};
+/* Puzzles whose free-orbit snaps to a clean orientation when you let go of a drag. FTO's latitude clamps
+   to ±35°, so snap latitude to a vertex band (±35) or the face band (0) and align longitude to 45° — you
+   always settle on a clean vertex-front or face-front view. */
+const TW_CAM_SNAP = { fto: { init:{latitude:0,longitude:0}, lats:[-35,0,35], longStep:45 } };
+function snapTwistyOrbit(snap, o){
+  const lat = snap.lats.reduce((a,b) => Math.abs(b-o.latitude) < Math.abs(a-o.latitude) ? b : a);
+  const long = ((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360 + 360) % 360;
+  return { latitude: lat, longitude: long };
+}
 /* cubing's twisty-player only ORBITS the camera on drag — it has no drag-to-turn for these shapes. So give
    each 3-D model clickable move buttons (its outer-layer moves). Click = the move, Shift = reverse (′). In
    the timer these drive solve-detection automatically (experimentalAddMove changes currentPattern). */
@@ -1248,14 +1253,8 @@ function renderTwistyMoves(tp, containerEl, opts){
   opts = opts || {};
   containerEl.innerHTML='';
   if (!tp || !tp.experimentalModel) return;
-  const setCam = c => { try { tp.experimentalModel.twistySceneModel.orbitCoordinatesRequest.set(c); } catch(_){} };
-  if (opts.camPresets && opts.camPresets.length){                  // camera locks (e.g. FTO vertex-front / face-front)
-    setCam(opts.camPresets[0][1]);                                 // start in the first preset's orientation
-    const cams=document.createElement('div'); cams.className='tw-cams';
-    opts.camPresets.forEach(([label,coords])=>{ const b=document.createElement('button'); b.className='tw-cam'; b.textContent=label; b.title='Lock the view — '+label;
-      b.addEventListener('click', ()=>setCam(coords)); cams.appendChild(b); });
-    containerEl.appendChild(cams);
-  }
+  if (opts.snap){ tp._twSnap = opts.snap;                          // snap free-orbit to clean vertex/face views on release
+    try { tp.experimentalModel.twistySceneModel.orbitCoordinatesRequest.set(opts.snap.init); } catch(_){} }
   tp.experimentalModel.currentPattern.get().then(kp => {
     const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
       .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers only (drop inner 2U/3U… and rotations …v)
@@ -1288,6 +1287,12 @@ document.addEventListener('keydown', e => {
   e.preventDefault();
   try { tp.experimentalAddMove(e.shiftKey ? mv + "'" : mv); } catch(_){}
 });
+/* after an orbit drag on a snap-enabled model (FTO), settle the camera to the nearest clean vertex/face view */
+document.addEventListener('pointerup', () => {
+  const tp = activeTwisty(); if (!tp || !tp._twSnap || !tp.experimentalModel) return;
+  const M = tp.experimentalModel.twistySceneModel;
+  M.orbitCoordinates.get().then(o => M.orbitCoordinatesRequest.set(snapTwistyOrbit(tp._twSnap, o))).catch(()=>{});
+});
 let trTwistyUnsub = null, trTwistyEl = null;
 function teardownTwistyTimer(){ if (trTwistyUnsub){ trTwistyUnsub(); trTwistyUnsub=null; }
   if (trTwistyEl){ if (trTwistyEl.parentNode===trainerSimEl) trainerSimEl.innerHTML=''; trTwistyEl=null; } }   // drop the element (frees its WebGL context)
@@ -1301,7 +1306,7 @@ function buildTwistyTimer(){
   const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
   if (scr.trim()) { try { tp.experimentalSetupAlg = scr; tp.alg = ''; } catch(e){} }   // try the app scramble (a no-op for geometry puzzles)
   trainerSimEl.innerHTML = ''; trainerSimEl.appendChild(tp); trTwistyEl = tp;
-  const mw = document.createElement('div'); trainerSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { camPresets: TW_CAM_PRESETS[trPuzzle] });   // move buttons + camera locks (solve on screen)
+  const mw = document.createElement('div'); trainerSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { snap: TW_CAM_SNAP[trPuzzle] });   // move buttons (+ FTO orbit-snap)
   const mine = tp;
   setTimeout(async () => {
     if (trTwistyEl !== mine || !tp.experimentalModel) return;
@@ -1821,7 +1826,7 @@ function playSelect(entry) {
     else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
     playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
-    const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { camPresets: TW_CAM_PRESETS[entry.id] });   // clickable move buttons + camera locks
+    const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { snap: TW_CAM_SNAP[entry.id] });   // clickable move buttons (+ FTO orbit-snap)
     playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
     return;
   }
