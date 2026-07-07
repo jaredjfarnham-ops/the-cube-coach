@@ -1237,25 +1237,57 @@ function randomModelScramble(kpuzzle){
   for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
   return seq.join(' ');
 }
+/* camera locks per puzzle: FTO can be viewed/solved with a vertex toward you or a face toward you. */
+const TW_CAM_PRESETS = {
+  fto: [['◆ Vertex', {latitude:60, longitude:0}], ['▲ Face', {latitude:0, longitude:0}]],
+};
 /* cubing's twisty-player only ORBITS the camera on drag — it has no drag-to-turn for these shapes. So give
    each 3-D model clickable move buttons (its outer-layer moves). Click = the move, Shift = reverse (′). In
    the timer these drive solve-detection automatically (experimentalAddMove changes currentPattern). */
-function renderTwistyMoves(tp, containerEl, onMove){
+function renderTwistyMoves(tp, containerEl, opts){
+  opts = opts || {};
   containerEl.innerHTML='';
   if (!tp || !tp.experimentalModel) return;
+  const setCam = c => { try { tp.experimentalModel.twistySceneModel.orbitCoordinatesRequest.set(c); } catch(_){} };
+  if (opts.camPresets && opts.camPresets.length){                  // camera locks (e.g. FTO vertex-front / face-front)
+    setCam(opts.camPresets[0][1]);                                 // start in the first preset's orientation
+    const cams=document.createElement('div'); cams.className='tw-cams';
+    opts.camPresets.forEach(([label,coords])=>{ const b=document.createElement('button'); b.className='tw-cam'; b.textContent=label; b.title='Lock the view — '+label;
+      b.addEventListener('click', ()=>setCam(coords)); cams.appendChild(b); });
+    containerEl.appendChild(cams);
+  }
   tp.experimentalModel.currentPattern.get().then(kp => {
     const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
       .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers only (drop inner 2U/3U… and rotations …v)
     if (!names.length) return;
+    tp._twMoves = names;                                           // for keyboard turning (single-letter moves)
     const bar=document.createElement('div'); bar.className='tw-moves';
     names.forEach(n => { const b=document.createElement('button'); b.className='tw-move'; b.textContent=n; b.title=`${n}  ·  Shift = ${n}′`;
-      b.addEventListener('click', e => { try { tp.experimentalAddMove(e.shiftKey ? n+"'" : n); } catch(_){} if (onMove) onMove(); });
+      b.addEventListener('click', e => { try { tp.experimentalAddMove(e.shiftKey ? n+"'" : n); } catch(_){} });
       bar.appendChild(b); });
     containerEl.appendChild(bar);
-    const hint=document.createElement('div'); hint.className='tw-moves-hint'; hint.innerHTML='Tap a move to turn · <b>Shift</b> = reverse (′) · drag the puzzle to rotate the view';
+    const hint=document.createElement('div'); hint.className='tw-moves-hint'; hint.innerHTML='Tap a move (or press its key) to turn · <b>Shift</b> = reverse (′) · drag the puzzle to rotate the view';
     containerEl.appendChild(hint);
   }).catch(()=>{});
 }
+/* the 3-D model the user is currently interacting with (playground puzzle, or the virtual-timer model) */
+function activeTwisty(){
+  if (!playView.classList.contains('hidden') && playEntry && playEntry.kind==='twisty') return playSimEl.querySelector('twisty-player');
+  if (!trView.classList.contains('hidden') && trCubeMode==='virtual' && TWISTY_TIMER[trPuzzle]) return trTwistyEl;
+  return null;
+}
+/* Keyboard turning for the 3-D models: a single-letter key = that face move; Shift = reverse (′). */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key.length !== 1) return;
+  const tp = activeTwisty(); if (!tp || !tp._twMoves) return;
+  const key = e.key.toUpperCase();
+  const mv = tp._twMoves.find(n => n.toUpperCase() === key);   // single-letter moves only (multi-letter → buttons)
+  if (!mv) return;
+  e.preventDefault();
+  try { tp.experimentalAddMove(e.shiftKey ? mv + "'" : mv); } catch(_){}
+});
 let trTwistyUnsub = null, trTwistyEl = null;
 function teardownTwistyTimer(){ if (trTwistyUnsub){ trTwistyUnsub(); trTwistyUnsub=null; }
   if (trTwistyEl){ if (trTwistyEl.parentNode===trainerSimEl) trainerSimEl.innerHTML=''; trTwistyEl=null; } }   // drop the element (frees its WebGL context)
@@ -1269,7 +1301,7 @@ function buildTwistyTimer(){
   const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
   if (scr.trim()) { try { tp.experimentalSetupAlg = scr; tp.alg = ''; } catch(e){} }   // try the app scramble (a no-op for geometry puzzles)
   trainerSimEl.innerHTML = ''; trainerSimEl.appendChild(tp); trTwistyEl = tp;
-  const mw = document.createElement('div'); trainerSimEl.appendChild(mw); renderTwistyMoves(tp, mw);   // move buttons (solve the model on screen)
+  const mw = document.createElement('div'); trainerSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { camPresets: TW_CAM_PRESETS[trPuzzle] });   // move buttons + camera locks (solve on screen)
   const mine = tp;
   setTimeout(async () => {
     if (trTwistyEl !== mine || !tp.experimentalModel) return;
@@ -1789,7 +1821,7 @@ function playSelect(entry) {
     else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
     playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
-    const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw);   // clickable move buttons (no drag-to-turn for these shapes)
+    const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { camPresets: TW_CAM_PRESETS[entry.id] });   // clickable move buttons + camera locks
     playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
     return;
   }
