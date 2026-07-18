@@ -1252,6 +1252,46 @@ function snapTwistyOrbit(snap, o){
   const long = snap.longStep ? (((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360) + 360) % 360 : o.longitude;
   return { latitude: lat, longitude: long };
 }
+/* Drag-to-tumble: mouse-drag rotates the WHOLE 3-D puzzle (like the app's own cubes) so any face —
+   including the bottom — can be stood upright on top, no arrow keys needed. Each puzzle's two moves are a
+   VERIFIED generating pair for its full rotation group (octahedron/cube-variant = 24, dodecahedron = 60,
+   tetrahedron = 12) — face-only/corner-only pairs get stuck in a subgroup, so these were checked by
+   counting the rotation orbit. vertical drag = 'tilt' axis, horizontal drag = 'spin' axis. */
+const TW_TUMBLE = {
+  fto:{tilt:'D_BR_R_Fv',spin:'D_F_L_BLv'}, cto:{tilt:'DBRRFv',spin:'DFLBLv'},                 // octahedra: perpendicular vertex 4-folds
+  mega:{tilt:'Fv',spin:'Uv'}, kilo:{tilt:'Fv',spin:'Uv'}, giga:{tilt:'Fv',spin:'Uv'}, tera:{tilt:'Fv',spin:'Uv'},   // dodecahedra: two face 5-folds
+  mpyra:{tilt:'Rv',spin:'Lv'}, profpyra:{tilt:'Rv',spin:'Lv'}, royalpyra:{tilt:'Rv',spin:'Lv'},   // tetrahedra: two vertex 3-folds
+  redi:{tilt:'Lv',spin:'Dv'}, masterskewb:{tilt:'Lv',spin:'Dv'}, eliteskewb:{tilt:'Lv',spin:'Dv'},   // cube-variants: perpendicular face 4-folds
+};
+/* Make a <twisty-player>'s mouse-drag tumble the puzzle instead of orbiting the camera, while keeping
+   cubing's native click-to-turn. cubing's orbit and click-press share ONE DragTracker on the canvas, so
+   we can't disable the orbit without also losing clicks. Instead we intercept pointer events in the
+   CAPTURE phase on the element (an ancestor of the shadow-nested canvas): once a gesture MOVES past a
+   threshold we swallow its pointermove + pointerup (cubing never orbits and never fires an accidental
+   "press"/turn) and drive whole-puzzle rotations ourselves; a no-move gesture falls through untouched → a
+   native turn. Pointer events are composed, so a capture listener on the light-DOM element beats cubing's
+   canvas listener even though the canvas calls setPointerCapture. */
+function attachTwistyTumble(tp, cfg){
+  if (!cfg) return;
+  const THRESH = 5, STEP = 46;                 // px before a click becomes a drag; px of drag per rotation step
+  let downX=0, downY=0, accX=0, accY=0, tracking=false, dragging=false;
+  const addRot = (mv, inv) => { try { tp.experimentalAddMove(inv ? mv+"'" : mv); } catch(_){} };
+  tp.addEventListener('pointerdown', e => { tracking=true; dragging=false; downX=e.clientX; downY=e.clientY; accX=accY=0; }, true);
+  tp.addEventListener('pointermove', e => {
+    if (!tracking) return;
+    if (!dragging && Math.hypot(e.clientX-downX, e.clientY-downY) > THRESH) dragging=true;
+    if (!dragging) return;
+    e.stopImmediatePropagation(); e.preventDefault();          // capture phase → cubing's canvas never sees the move → no orbit
+    accX += e.movementX; accY += e.movementY;
+    while (accY >  STEP){ addRot(cfg.tilt);       accY -= STEP; }   // drag down  → tilt forward
+    while (accY < -STEP){ addRot(cfg.tilt, true); accY += STEP; }   // drag up    → tilt back
+    while (accX >  STEP){ addRot(cfg.spin, true); accX -= STEP; }   // drag right → spin
+    while (accX < -STEP){ addRot(cfg.spin);       accX += STEP; }   // drag left  → spin the other way
+  }, true);
+  const end = e => { if (dragging) e.stopImmediatePropagation(); tracking=false; dragging=false; };   // swallow a drag's pointerup so cubing doesn't fire a "press" (turn)
+  tp.addEventListener('pointerup', end, true);
+  tp.addEventListener('pointercancel', end, true);
+}
 /* Set up the interactive controls for a 3-D model: mouse turning is cubing's built-in move-press
    (enabled via experimentalMovePressInput='basic' on the element — drag a piece to turn it, drag the
    background to rotate), plus optional orbit-snap and single-letter keyboard turning. */
@@ -1269,7 +1309,7 @@ function renderTwistyMoves(tp, containerEl, opts){
     tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys, generic fallback)
     tp._twArrows = (opts.snap && opts.snap.rotKeys) || null;       // explicit per-puzzle arrow→rotation map (FTO)
     const hint=document.createElement('div'); hint.className='tw-moves-hint';
-    hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to rotate the view · <b>arrow keys</b> reorient the puzzle · or a face key (Shift = reverse)';
+    hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to tumble the whole puzzle (any face to the top) · or a face key (Shift = reverse)';
     containerEl.appendChild(hint);
   }).catch(()=>{});
 }
@@ -1828,7 +1868,7 @@ function playSelect(entry) {
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
     playControls.setInteract({});
-    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Click a piece</b> to turn it (right-click reverses); <b>drag</b> to rotate the view; <b>arrow keys</b> reorient the whole puzzle. Use <b>Scramble</b> to shuffle.';
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Click a piece</b> to turn it (right-click reverses); <b>drag</b> to tumble the whole puzzle — bring any face to the top. Use <b>Scramble</b> to shuffle.';
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
     tp.experimentalMovePressInput = 'basic';                       // enable mouse turning: drag/click a piece to turn it
@@ -1841,6 +1881,7 @@ function playSelect(entry) {
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
     playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
     const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { snap: TW_CAM_SNAP[entry.id] });   // clickable move buttons (+ FTO orbit-snap)
+    attachTwistyTumble(tp, TW_TUMBLE[entry.id]);                             // drag tumbles the whole puzzle so any face can stand upright on top
     playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
     return;
   }
