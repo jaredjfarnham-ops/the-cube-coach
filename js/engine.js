@@ -112,7 +112,7 @@ function makeCube(cubeEl, opts={}) {
     flip = !!o.flip;
     coords = rangeCoords(N);
     const size = N===3 ? 48 : Math.max(15, Math.round(144 / N));
-    unit = size + 2;
+    unit = size + Math.max(1, Math.round(size / 24));   // inter-cubie gap scales with piece size (≈2px on 3×3, ~1px on 7×7) so big cubes don't look separated
     cubeEl.style.setProperty('--cubie', size+'px');
     cubeEl.style.setProperty('--half', (size/2)+'px');
   }
