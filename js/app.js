@@ -254,17 +254,15 @@ function simKeyMove(sim, e, opts={}) {          // camera-relative screen-role k
 }
 function attachSimPointer(el, getSim, onChange, hooks={}) {
   let mode=null, sx=0, sy=0, turnV=null, turnTip=null, dnx=0, dny=0;
-  const ORBIT_SWEEP=30;                       // a sticker drag past this becomes a free camera orbit (turns are short flicks)
   el.addEventListener('pointerdown', e => {
     const sim=getSim(); if (!sim) return;
     const fl = e.target.closest('[data-v]');
-    // sticker-down starts PENDING: a short flick turns that piece; a longer sweep promotes to orbit so the
-    // camera can be spun (incl. horizontal/Y) from anywhere, not just the thin empty margins.
+    // DRAG a sticker (any length, or a short flick) to TURN that piece — like the 3-D models. Orbit the
+    // camera by dragging EMPTY space (or double-click to recentre / use the keyboard).
     if (fl && sim.screenRoles) { mode='pending'; turnV=fl.dataset.v; turnTip=fl.dataset.tip; dnx=sx=e.clientX; dny=sy=e.clientY; try{ el.setPointerCapture(e.pointerId); }catch(_){} return; }
     if (sim.rotateView) { mode='orbit'; sx=e.clientX; sy=e.clientY; try{ el.setPointerCapture(e.pointerId); }catch(_){} }
   });
   el.addEventListener('pointermove', e => { const sim=getSim(); if (!sim) return;
-    if (mode==='pending' && sim.rotateView && Math.hypot(e.clientX-dnx, e.clientY-dny) > ORBIT_SWEEP) { mode='orbit'; sx=e.clientX; sy=e.clientY; }
     if (mode==='orbit') { sim.rotateView(e.clientX-sx, e.clientY-sy); sx=e.clientX; sy=e.clientY; onChange(); } });
   el.addEventListener('pointerup', e => {
     const sim=getSim();
