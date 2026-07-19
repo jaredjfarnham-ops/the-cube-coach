@@ -1303,17 +1303,18 @@ async function attachTwistyControls(tp, tumbleCfg){
       if (acted) return;
       if (Math.hypot(e.clientX-down.clientX, e.clientY-down.clientY) < TH) return;
       acted=true; turnAt(hitPt, down.button===2);
-    } else {                                                      // tumble the whole puzzle (whole-puzzle rotations)
+    } else {                                                      // accumulate the tumble drag; the whole-puzzle rotation commits on release, not mid-drag
       accX+=e.movementX; accY+=e.movementY;
-      while (accY> STEP){ addMove(tumbleCfg.tilt);     accY-=STEP; }
-      while (accY<-STEP){ addMove(tumbleCfg.tilt+"'"); accY+=STEP; }
-      while (accX> STEP){ addMove(tumbleCfg.spin+"'"); accX-=STEP; }
-      while (accX<-STEP){ addMove(tumbleCfg.spin);     accX+=STEP; }
     }
   });
   const end = e => {
     if (mode==='turn' && !acted && down && hitPt &&               // a click (no drag) on a sticker → turn its layer
         Math.hypot(e.clientX-down.clientX, e.clientY-down.clientY) < TH) turnAt(hitPt, down.button===2);
+    else if (mode==='tumble' && tumbleCfg) {                      // commit the tumble on release: rotate by however far you dragged (capped)
+      const ty=Math.max(-4,Math.min(4,Math.round(accY/STEP))), tx=Math.max(-4,Math.min(4,Math.round(accX/STEP)));
+      for (let i=0;i<Math.abs(ty);i++) addMove(ty>0?tumbleCfg.tilt:tumbleCfg.tilt+"'");
+      for (let i=0;i<Math.abs(tx);i++) addMove(tx>0?tumbleCfg.spin+"'":tumbleCfg.spin);
+    }
     mode=null; down=null; acted=false;
     try { tp.releasePointerCapture(e.pointerId); } catch(_){}
   };
