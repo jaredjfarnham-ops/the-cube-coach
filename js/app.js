@@ -1263,25 +1263,20 @@ const TW_TUMBLE = {
   mpyra:{tilt:'Rv',spin:'Lv'}, profpyra:{tilt:'Rv',spin:'Lv'}, royalpyra:{tilt:'Rv',spin:'Lv'},   // tetrahedra: two vertex 3-folds
   redi:{tilt:'Lv',spin:'Dv'}, masterskewb:{tilt:'Lv',spin:'Dv'}, eliteskewb:{tilt:'Lv',spin:'Dv'},   // cube-variants: perpendicular face 4-folds
 };
-/* Give every 3-D model the SAME feel as the app's own NxN cubes: DRAG a sticker to turn that layer
-   (direction of the drag picks which adjacent face and which way), DRAG empty space to tumble the whole
-   puzzle, CLICK a sticker to turn its own face (right-click / right-drag = reverse). cubing has no
-   drag-to-turn, so we disable its native input (experimentalDragInput='none' — no camera orbit, no
-   click-press, no canvas pointer capture) and own all pointer input ourselves, reusing cubing's exposed
-   THREE puzzle object + camera to raycast, and cubing's own move animator to apply the turn.
-   The drag→turn math and pick loop were validated at runtime against cubing's hit meshes. */
+/* Give every 3-D model NxN-style input: DRAG or CLICK a sticker turns that sticker's layer (right-click /
+   right-drag = reverse); DRAG empty space tumbles the whole puzzle. cubing has no drag-to-turn and ties
+   orbit + click-press to one canvas tracker, so we set experimentalDragInput='none' and own all pointer
+   input, reusing cubing's exposed THREE puzzle object + camera to raycast, its own getClosestMoveToAxis
+   picker (the turn is always the exact move cubing itself would apply — never the wrong face), and its
+   move animator. */
 async function attachTwistyControls(tp, tumbleCfg){
-  let THREE, pg3d, targets, cam, canvas, faceAxes;
+  let THREE, pg3d, targets, cam, canvas;
   try {
     THREE = await import('/vendor/cubing/npm/three/three.module.js');
     pg3d = await tp.experimentalCurrentThreeJSPuzzleObject();
     targets = (pg3d && pg3d.experimentalGetControlTargets) ? pg3d.experimentalGetControlTargets() : [];
     cam = await [...await tp.experimentalCurrentVantages()][0].camera();
     canvas = [...await tp.experimentalCurrentCanvases()][0];
-    const kp = (await tp.experimentalModel.currentPattern.get()).kpuzzle;
-    const turnSet = new Set(Object.keys(kp.definition.moves).map(m => m.replace(/(['0-9]+)$/,'')).filter(m => !/v$/.test(m)));   // layer turns (drop amounts, exclude rotations)
-    faceAxes = (pg3d.stickerDat && pg3d.stickerDat.axis || []).filter(a => turnSet.has(String(a.quantumMove)))
-      .map(a => ({ move:String(a.quantumMove), v:new THREE.Vector3(...a.coordinates).normalize() }));   // world-space turn axis per face (puzzle stays in a fixed frame, so local==world)
   } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
   if (!targets.length || !cam || !canvas) return;
   const rc = new THREE.Raycaster();
@@ -1289,20 +1284,9 @@ async function attachTwistyControls(tp, tumbleCfg){
   const pick = e => { const r=canvas.getBoundingClientRect();
     rc.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1), (cam.updateMatrixWorld(), cam));
     return rc.intersectObjects(targets, true)[0] || null; };
-  function dragTurn(pt, dx, dy, reverse){                         // pick the turn whose axis best matches the drag on the sticker surface
-    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
-    const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
-    const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
-    const N = pt.clone().normalize();                             // outward surface direction at the hit (geometry-agnostic: works for face/corner/edge turners)
-    const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn the drag implies
-    let best=null, bd=0.3; for (const ax of faceAxes){ const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; } }
-    if (!best) return;
-    let inv = bd > 0; if (reverse) inv = !inv;   // cubing face moves are clockwise-from-outside = negative rotation about the outward normal, so a positive alignment means the primed move
-    addMove(best.move + (inv?"'":''));
-  }
-  function clickTurn(pt, reverse){                                // plain click → cubing's own nearest-valid-turn picker (handles corner/face/edge)
+  const turnAt = (pt, reverse) => {                               // apply the exact move cubing's own picker chooses for this sticker (same as native click-to-turn)
     try { const r = pg3d.getClosestMoveToAxis(pt, { invert: !!reverse, depth: 'none' }); if (r && r.move) addMove(String(r.move)); } catch(_){}
-  }
+  };
   let mode=null, down=null, hitPt=null, accX=0, accY=0, acted=false;
   const STEP=46, TH=8;
   tp.addEventListener('pointerdown', e => {
@@ -1315,12 +1299,11 @@ async function attachTwistyControls(tp, tumbleCfg){
   });
   tp.addEventListener('pointermove', e => {
     if (!mode || !down) return;
-    if (mode==='turn') {
+    if (mode==='turn') {                                          // drag a sticker past a small threshold → turn its layer
       if (acted) return;
-      const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
-      if (Math.hypot(dx,dy) < TH) return;
-      acted=true; dragTurn(hitPt, dx, dy, down.button===2);        // one turn per drag
-    } else {                                                       // tumble the whole puzzle (whole-puzzle rotations)
+      if (Math.hypot(e.clientX-down.clientX, e.clientY-down.clientY) < TH) return;
+      acted=true; turnAt(hitPt, down.button===2);
+    } else {                                                      // tumble the whole puzzle (whole-puzzle rotations)
       accX+=e.movementX; accY+=e.movementY;
       while (accY> STEP){ addMove(tumbleCfg.tilt);     accY-=STEP; }
       while (accY<-STEP){ addMove(tumbleCfg.tilt+"'"); accY+=STEP; }
@@ -1329,10 +1312,8 @@ async function attachTwistyControls(tp, tumbleCfg){
     }
   });
   const end = e => {
-    if (mode==='turn' && !acted && down && hitPt) {               // a click (no drag) on a sticker → turn the nearest layer
-      const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
-      if (Math.hypot(dx,dy) < TH) clickTurn(hitPt, down.button===2);
-    }
+    if (mode==='turn' && !acted && down && hitPt &&               // a click (no drag) on a sticker → turn its layer
+        Math.hypot(e.clientX-down.clientX, e.clientY-down.clientY) < TH) turnAt(hitPt, down.button===2);
     mode=null; down=null; acted=false;
     try { tp.releasePointerCapture(e.pointerId); } catch(_){}
   };
@@ -1356,7 +1337,7 @@ function renderTwistyMoves(tp, containerEl, opts){
     tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys, generic fallback)
     tp._twArrows = (opts.snap && opts.snap.rotKeys) || null;       // explicit per-puzzle arrow→rotation map (FTO)
     const hint=document.createElement('div'); hint.className='tw-moves-hint';
-    hint.innerHTML='<b>Drag a piece</b> to turn its layer (<b>right-click</b> reverses) · <b>drag empty space</b> to tumble the puzzle · or a face key (Shift = reverse)';
+    hint.innerHTML='<b>Drag or click a piece</b> to turn its layer (<b>right-click</b> reverses) · <b>drag empty space</b> to tumble the puzzle · or a face key (Shift = reverse)';
     containerEl.appendChild(hint);
   }).catch(()=>{});
 }
@@ -1915,7 +1896,7 @@ function playSelect(entry) {
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
     playControls.setInteract({});
-    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag a piece</b> to turn that layer (<b>right-click</b> reverses); <b>drag empty space</b> to tumble the whole puzzle. Use <b>Scramble</b> to shuffle.';
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag or click a piece</b> to turn its layer (<b>right-click</b> reverses); <b>drag empty space</b> to tumble the whole puzzle. Use <b>Scramble</b> to shuffle.';
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
     tp.experimentalDragInput = 'none';                             // turn off cubing's native orbit/click-press; attachTwistyControls owns all pointer input (drag-to-turn + tumble)
