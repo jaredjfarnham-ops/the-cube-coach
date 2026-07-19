@@ -1297,7 +1297,7 @@ async function attachTwistyControls(tp, tumbleCfg){
     const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn the drag implies
     let best=null, bd=0.3; for (const ax of faceAxes){ const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; } }
     if (!best) return;
-    let inv = bd < 0; if (reverse) inv = !inv;
+    let inv = bd > 0; if (reverse) inv = !inv;   // cubing face moves are clockwise-from-outside = negative rotation about the outward normal, so a positive alignment means the primed move
     addMove(best.move + (inv?"'":''));
   }
   function clickTurn(pt, reverse){                                // plain click → cubing's own nearest-valid-turn picker (handles corner/face/edge)
