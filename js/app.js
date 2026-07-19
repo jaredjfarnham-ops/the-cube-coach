@@ -1263,38 +1263,85 @@ const TW_TUMBLE = {
   mpyra:{tilt:'Rv',spin:'Lv'}, profpyra:{tilt:'Rv',spin:'Lv'}, royalpyra:{tilt:'Rv',spin:'Lv'},   // tetrahedra: two vertex 3-folds
   redi:{tilt:'Lv',spin:'Dv'}, masterskewb:{tilt:'Lv',spin:'Dv'}, eliteskewb:{tilt:'Lv',spin:'Dv'},   // cube-variants: perpendicular face 4-folds
 };
-/* Make a <twisty-player>'s mouse-drag tumble the puzzle instead of orbiting the camera, while keeping
-   cubing's native click-to-turn. cubing's orbit and click-press share ONE DragTracker on the canvas, so
-   we can't disable the orbit without also losing clicks. Instead we intercept pointer events in the
-   CAPTURE phase on the element (an ancestor of the shadow-nested canvas): once a gesture MOVES past a
-   threshold we swallow its pointermove + pointerup (cubing never orbits and never fires an accidental
-   "press"/turn) and drive whole-puzzle rotations ourselves; a no-move gesture falls through untouched → a
-   native turn. Pointer events are composed, so a capture listener on the light-DOM element beats cubing's
-   canvas listener even though the canvas calls setPointerCapture. */
-function attachTwistyTumble(tp, cfg){
-  if (!cfg) return;
-  const THRESH = 5, STEP = 46;                 // px before a click becomes a drag; px of drag per rotation step
-  let downX=0, downY=0, accX=0, accY=0, tracking=false, dragging=false;
-  const addRot = (mv, inv) => { try { tp.experimentalAddMove(inv ? mv+"'" : mv); } catch(_){} };
-  tp.addEventListener('pointerdown', e => { tracking=true; dragging=false; downX=e.clientX; downY=e.clientY; accX=accY=0; }, true);
+/* Give every 3-D model the SAME feel as the app's own NxN cubes: DRAG a sticker to turn that layer
+   (direction of the drag picks which adjacent face and which way), DRAG empty space to tumble the whole
+   puzzle, CLICK a sticker to turn its own face (right-click / right-drag = reverse). cubing has no
+   drag-to-turn, so we disable its native input (experimentalDragInput='none' — no camera orbit, no
+   click-press, no canvas pointer capture) and own all pointer input ourselves, reusing cubing's exposed
+   THREE puzzle object + camera to raycast, and cubing's own move animator to apply the turn.
+   The drag→turn math and pick loop were validated at runtime against cubing's hit meshes. */
+async function attachTwistyControls(tp, tumbleCfg){
+  let THREE, pg3d, targets, cam, canvas, faceAxes;
+  try {
+    THREE = await import('/vendor/cubing/npm/three/three.module.js');
+    pg3d = await tp.experimentalCurrentThreeJSPuzzleObject();
+    targets = (pg3d && pg3d.experimentalGetControlTargets) ? pg3d.experimentalGetControlTargets() : [];
+    cam = await [...await tp.experimentalCurrentVantages()][0].camera();
+    canvas = [...await tp.experimentalCurrentCanvases()][0];
+    const kp = (await tp.experimentalModel.currentPattern.get()).kpuzzle;
+    const turnSet = new Set(Object.keys(kp.definition.moves).map(m => m.replace(/(['0-9]+)$/,'')).filter(m => !/v$/.test(m)));   // layer turns (drop amounts, exclude rotations)
+    faceAxes = (pg3d.stickerDat && pg3d.stickerDat.axis || []).filter(a => turnSet.has(String(a.quantumMove)))
+      .map(a => ({ move:String(a.quantumMove), v:new THREE.Vector3(...a.coordinates).normalize() }));   // world-space turn axis per face (puzzle stays in a fixed frame, so local==world)
+  } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
+  if (!targets.length || !cam || !canvas) return;
+  const rc = new THREE.Raycaster();
+  const addMove = m => { try { tp.experimentalAddMove(m); } catch(_){} };
+  const pick = e => { const r=canvas.getBoundingClientRect();
+    rc.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1), (cam.updateMatrixWorld(), cam));
+    return rc.intersectObjects(targets, true)[0] || null; };
+  function dragTurn(pt, dx, dy, reverse){                         // pick the turn whose axis best matches the drag on the sticker surface
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
+    const N = pt.clone().normalize();                             // outward surface direction at the hit (geometry-agnostic: works for face/corner/edge turners)
+    const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn the drag implies
+    let best=null, bd=0.3; for (const ax of faceAxes){ const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; } }
+    if (!best) return;
+    let inv = bd < 0; if (reverse) inv = !inv;
+    addMove(best.move + (inv?"'":''));
+  }
+  function clickTurn(pt, reverse){                                // plain click → cubing's own nearest-valid-turn picker (handles corner/face/edge)
+    try { const r = pg3d.getClosestMoveToAxis(pt, { invert: !!reverse, depth: 'none' }); if (r && r.move) addMove(String(r.move)); } catch(_){}
+  }
+  let mode=null, down=null, hitPt=null, accX=0, accY=0, acted=false;
+  const STEP=46, TH=8;
+  tp.addEventListener('pointerdown', e => {
+    if (e.button!==0 && e.button!==2) return;
+    down=e; acted=false; accX=accY=0;
+    const hit=pick(e);
+    mode = hit ? 'turn' : (tumbleCfg ? 'tumble' : null);
+    hitPt = hit ? hit.point.clone() : null;
+    try { tp.setPointerCapture(e.pointerId); } catch(_){}
+  });
   tp.addEventListener('pointermove', e => {
-    if (!tracking) return;
-    if (!dragging && Math.hypot(e.clientX-downX, e.clientY-downY) > THRESH) dragging=true;
-    if (!dragging) return;
-    e.stopImmediatePropagation(); e.preventDefault();          // capture phase → cubing's canvas never sees the move → no orbit
-    accX += e.movementX; accY += e.movementY;
-    while (accY >  STEP){ addRot(cfg.tilt);       accY -= STEP; }   // drag down  → tilt forward
-    while (accY < -STEP){ addRot(cfg.tilt, true); accY += STEP; }   // drag up    → tilt back
-    while (accX >  STEP){ addRot(cfg.spin, true); accX -= STEP; }   // drag right → spin
-    while (accX < -STEP){ addRot(cfg.spin);       accX += STEP; }   // drag left  → spin the other way
-  }, true);
-  const end = e => { if (dragging) e.stopImmediatePropagation(); tracking=false; dragging=false; };   // swallow a drag's pointerup so cubing doesn't fire a "press" (turn)
-  tp.addEventListener('pointerup', end, true);
-  tp.addEventListener('pointercancel', end, true);
+    if (!mode || !down) return;
+    if (mode==='turn') {
+      if (acted) return;
+      const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
+      if (Math.hypot(dx,dy) < TH) return;
+      acted=true; dragTurn(hitPt, dx, dy, down.button===2);        // one turn per drag
+    } else {                                                       // tumble the whole puzzle (whole-puzzle rotations)
+      accX+=e.movementX; accY+=e.movementY;
+      while (accY> STEP){ addMove(tumbleCfg.tilt);     accY-=STEP; }
+      while (accY<-STEP){ addMove(tumbleCfg.tilt+"'"); accY+=STEP; }
+      while (accX> STEP){ addMove(tumbleCfg.spin+"'"); accX-=STEP; }
+      while (accX<-STEP){ addMove(tumbleCfg.spin);     accX+=STEP; }
+    }
+  });
+  const end = e => {
+    if (mode==='turn' && !acted && down && hitPt) {               // a click (no drag) on a sticker → turn the nearest layer
+      const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
+      if (Math.hypot(dx,dy) < TH) clickTurn(hitPt, down.button===2);
+    }
+    mode=null; down=null; acted=false;
+    try { tp.releasePointerCapture(e.pointerId); } catch(_){}
+  };
+  tp.addEventListener('pointerup', end);
+  tp.addEventListener('pointercancel', end);
+  tp.addEventListener('contextmenu', e => e.preventDefault());     // right-click reverses, so suppress its menu
 }
-/* Set up the interactive controls for a 3-D model: mouse turning is cubing's built-in move-press
-   (enabled via experimentalMovePressInput='basic' on the element — drag a piece to turn it, drag the
-   background to rotate), plus optional orbit-snap and single-letter keyboard turning. */
+/* Secondary setup for a 3-D model: the initial camera view and single-letter keyboard turning + the hint.
+   (Mouse turning/tumbling is owned by attachTwistyControls; the playground disables cubing's native input.) */
 function renderTwistyMoves(tp, containerEl, opts){
   opts = opts || {};
   containerEl.innerHTML='';
@@ -1309,7 +1356,7 @@ function renderTwistyMoves(tp, containerEl, opts){
     tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys, generic fallback)
     tp._twArrows = (opts.snap && opts.snap.rotKeys) || null;       // explicit per-puzzle arrow→rotation map (FTO)
     const hint=document.createElement('div'); hint.className='tw-moves-hint';
-    hint.innerHTML='<b>Click a piece</b> to turn it (<b>right-click</b> reverses) · <b>drag</b> to tumble the whole puzzle (any face to the top) · or a face key (Shift = reverse)';
+    hint.innerHTML='<b>Drag a piece</b> to turn its layer (<b>right-click</b> reverses) · <b>drag empty space</b> to tumble the puzzle · or a face key (Shift = reverse)';
     containerEl.appendChild(hint);
   }).catch(()=>{});
 }
@@ -1868,10 +1915,10 @@ function playSelect(entry) {
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
     playControls.setInteract({});
-    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Click a piece</b> to turn it (right-click reverses); <b>drag</b> to tumble the whole puzzle — bring any face to the top. Use <b>Scramble</b> to shuffle.';
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag a piece</b> to turn that layer (<b>right-click</b> reverses); <b>drag empty space</b> to tumble the whole puzzle. Use <b>Scramble</b> to shuffle.';
     const tp = document.createElement('twisty-player');
     tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
-    tp.experimentalMovePressInput = 'basic';                       // enable mouse turning: drag/click a piece to turn it
+    tp.experimentalDragInput = 'none';                             // turn off cubing's native orbit/click-press; attachTwistyControls owns all pointer input (drag-to-turn + tumble)
     // NOTE: do NOT set display here — twisty-player needs its default :host{display:grid};
     // forcing display:block collapses its internal grid layout to 0 height (blank 360x0 canvas).
     // margin:0 auto still centres it (grid host is block-level).
@@ -1881,7 +1928,7 @@ function playSelect(entry) {
     else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
     playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
     const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { snap: TW_CAM_SNAP[entry.id] });   // clickable move buttons (+ FTO orbit-snap)
-    attachTwistyTumble(tp, TW_TUMBLE[entry.id]);                             // drag tumbles the whole puzzle so any face can stand upright on top
+    attachTwistyControls(tp, TW_TUMBLE[entry.id]);                           // NxN-style input: drag a sticker to turn, drag empty space to tumble
     playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
     return;
   }
