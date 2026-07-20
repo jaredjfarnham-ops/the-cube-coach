@@ -1302,7 +1302,16 @@ async function attachTwistyControls(tp, tumbleCfg){
     const fa = faceAxes.find(a => a.move === face);
     const N = fa ? fa.v.clone() : pt.clone().normalize();
     const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn this drag implies
-    let best=null, bd=0.25; for (const ax of faceAxes){ const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; } }
+    // Only consider layers that actually CONTAIN the grabbed sticker. Without this, far-side faces (e.g. a
+    // dodecahedron's second ring) project onto the drag axis just as strongly as the neighbouring ones and
+    // can win, so a drag on one side would turn a face nowhere near the cursor.
+    const Pn = pt.clone().normalize();
+    let best=null, bd=0.25;
+    for (const ax of faceAxes){
+      if (ax.move === face) continue;                             // sweeping across a face never turns that face itself
+      if (ax.v.dot(Pn) <= 0.1) continue;                          // sticker isn't in this face's layer
+      const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; }
+    }
     if (!best) { turnAt(pt, reverse); return; }
     let inv = bd > 0; if (reverse) inv = !inv;                    // cubing moves are clockwise-from-outside (negative about the outward normal)
     addMove(best.move + (inv?"'":''));
