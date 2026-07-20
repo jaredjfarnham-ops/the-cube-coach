@@ -1278,8 +1278,21 @@ async function attachTwistyControls(tp, tumbleCfg){
     const kp = (await tp.experimentalModel.currentPattern.get()).kpuzzle;
     const turnSet = new Set(Object.keys(kp.definition.moves).map(m => m.replace(/(['0-9]+)$/,''))
       .filter(m => !/v$/.test(m) && !/^\d/.test(m)));             // outer-layer turn families (drop rotations and 2X inner slices)
-    faceAxes = (pg3d.stickerDat && pg3d.stickerDat.axis || []).filter(a => turnSet.has(String(a.quantumMove)))
-      .map(a => ({ move:String(a.quantumMove), v:new THREE.Vector3(...a.coordinates).normalize() }));   // world turn axis per face
+    // Build the face-turn axes. Do NOT match stickerDat's axis names against move names: stickerDat uses an
+    // internal notation that only partly overlaps (Megaminx: BF/E/C/A/I where the moves are B/DR/DL/FR/FL),
+    // so name-matching silently dropped real faces AND let same-named EDGE axes in. Instead ask cubing's own
+    // picker what move lies along each axis, and keep the first (face) axis for each distinct move.
+    const seen = new Set();
+    faceAxes = [];
+    for (const a of (pg3d.stickerDat && pg3d.stickerDat.axis || [])) {
+      const v = new THREE.Vector3(...a.coordinates).normalize();
+      let mv = null;
+      try { const r = pg3d.getClosestMoveToAxis(v.clone().multiplyScalar(2), { invert:false, depth:'none' }); mv = (r && r.move) ? String(r.move) : null; } catch(_){}
+      if (!mv) continue;
+      const base = mv.replace(/(['0-9]+)$/,'');
+      if (!turnSet.has(base) || seen.has(base)) continue;
+      seen.add(base); faceAxes.push({ move: base, v });
+    }
   } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
   if (!targets.length || !cam || !canvas) return;
   const rc = new THREE.Raycaster();
@@ -1309,7 +1322,11 @@ async function attachTwistyControls(tp, tumbleCfg){
     let best=null, bd=0.25;
     for (const ax of faceAxes){
       if (ax.move === face) continue;                             // sweeping across a face never turns that face itself
-      if (ax.v.dot(Pn) <= 0.1) continue;                          // sticker isn't in this face's layer
+      if (ax.v.dot(Pn) <= 0.1) continue;                          // far side of the puzzle — its layer can't hold this sticker
+      // ...and the sticker must sit at least as far TOWARD this face as the grabbed face's centre does.
+      // Every neighbour of a face scores the same at its centre, so without this an edge sticker (which
+      // touches only two faces) would still let any neighbour win — e.g. a green/cyan edge turning red.
+      if (ax.v.dot(Pn) < ax.v.dot(N) - 0.02) continue;
       const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; }
     }
     if (!best) { turnAt(pt, reverse); return; }
