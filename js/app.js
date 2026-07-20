@@ -1268,13 +1268,18 @@ const TW_TUMBLE = {
    picker (the turn is always the exact move cubing itself would apply — never the wrong face), and its
    move animator. */
 async function attachTwistyControls(tp, tumbleCfg){
-  let THREE, pg3d, targets, cam, canvas;
+  let THREE, pg3d, targets, cam, canvas, faceAxes=[];
   try {
     THREE = await import('/vendor/cubing/npm/three/three.module.js');
     pg3d = await tp.experimentalCurrentThreeJSPuzzleObject();
     targets = (pg3d && pg3d.experimentalGetControlTargets) ? pg3d.experimentalGetControlTargets() : [];
     cam = await [...await tp.experimentalCurrentVantages()][0].camera();
     canvas = [...await tp.experimentalCurrentCanvases()][0];
+    const kp = (await tp.experimentalModel.currentPattern.get()).kpuzzle;
+    const turnSet = new Set(Object.keys(kp.definition.moves).map(m => m.replace(/(['0-9]+)$/,''))
+      .filter(m => !/v$/.test(m) && !/^\d/.test(m)));             // outer-layer turn families (drop rotations and 2X inner slices)
+    faceAxes = (pg3d.stickerDat && pg3d.stickerDat.axis || []).filter(a => turnSet.has(String(a.quantumMove)))
+      .map(a => ({ move:String(a.quantumMove), v:new THREE.Vector3(...a.coordinates).normalize() }));   // world turn axis per face
   } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
   if (!targets.length || !cam || !canvas) return;
   const rc = new THREE.Raycaster();
@@ -1282,9 +1287,23 @@ async function attachTwistyControls(tp, tumbleCfg){
   const pick = e => { const r=canvas.getBoundingClientRect();
     rc.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1), (cam.updateMatrixWorld(), cam));
     return rc.intersectObjects(targets, true)[0] || null; };
-  const turnAt = (pt, reverse) => {                               // apply the exact move cubing's own picker chooses for this sticker (same as native click-to-turn)
+  const turnAt = (pt, reverse) => {                               // CLICK: apply the exact move cubing's own picker chooses for this sticker
     try { const r = pg3d.getClosestMoveToAxis(pt, { invert: !!reverse, depth: 'none' }); if (r && r.move) addMove(String(r.move)); } catch(_){}
   };
+  /* DRAG: turn the layer the drag sweeps — i.e. the ADJACENT face whose turn axis is perpendicular to the
+     drag (standard virtual-cube feel), with the drag's rotational sense choosing normal vs prime. */
+  function dragTurn(pt, dx, dy, reverse){
+    if (!faceAxes.length) { turnAt(pt, reverse); return; }
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
+    const N = pt.clone().normalize();                             // outward surface direction at the hit
+    const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn this drag implies
+    let best=null, bd=0.25; for (const ax of faceAxes){ const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; } }
+    if (!best) { turnAt(pt, reverse); return; }
+    let inv = bd > 0; if (reverse) inv = !inv;                    // cubing moves are clockwise-from-outside (negative about the outward normal)
+    addMove(best.move + (inv?"'":''));
+  }
   let mode=null, down=null, hitPt=null, accX=0, accY=0, acted=false;
   const STEP=46, TH=8;
   tp.addEventListener('pointerdown', e => {
@@ -1299,8 +1318,9 @@ async function attachTwistyControls(tp, tumbleCfg){
     if (!mode || !down) return;
     if (mode==='turn') {                                          // drag a sticker past a small threshold → turn its layer
       if (acted) return;
-      if (Math.hypot(e.clientX-down.clientX, e.clientY-down.clientY) < TH) return;
-      acted=true; turnAt(hitPt, down.button===2);
+      const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
+      if (Math.hypot(dx,dy) < TH) return;
+      acted=true; dragTurn(hitPt, dx, dy, down.button===2);
     } else {                                                      // accumulate the tumble drag; the whole-puzzle rotation commits on release, not mid-drag
       accX+=e.movementX; accY+=e.movementY;
     }
