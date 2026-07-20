@@ -122,6 +122,10 @@ function makeCube(cubeEl, opts={}) {
     for (const x of coords) for (const y of coords) for (const z of coords) {
       if (x>mn&&x<mx && y>mn&&y<mx && z>mn&&z<mx) continue;   // skip invisible interior cubies
       const el = document.createElement('div'); el.className='cubie';
+      // Speedcube look: sticker rounding grows toward the cube's corners (the dark plastic between four
+      // rounded corners reads as a diamond). 3 extreme coords = corner piece, 2 = edge, 1 = face interior.
+      const ext = (x===mn||x===mx) + (y===mn||y===mx) + (z===mn||z===mx);
+      el.style.setProperty('--rf', ext===3 ? '.28' : ext===2 ? '.20' : '.12');
       for (const f of faces) { const fd=document.createElement('div'); fd.className='face face-'+f+' '+colorOf(f,x,y,z); el.appendChild(fd); }
       cubeEl.appendChild(el);
       cubies.push({ el, home:{x,y,z}, pos:{x,y,z}, ori:I3 });
