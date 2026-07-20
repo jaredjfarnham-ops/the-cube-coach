@@ -1310,14 +1310,25 @@ async function attachTwistyControls(tp, tumbleCfg){
      centre you pull from decides clockwise vs anticlockwise. */
   function dragTurn(pt, face, downX, downY, dx, dy, reverse){
     const fa = faceAxes.find(a => a.move === face);
-    if (!fa) { turnAt(pt, reverse); return; }
-    const c = fa.v.clone().multiplyScalar(pt.length()).project(cam);       // that face's centre → NDC
+    if (!fa || !faceAxes.length) { turnAt(pt, reverse); return; }
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
+    // TARGET = the neighbouring face the drag heads toward (drag from a sticker toward a face → that face turns)
+    let best=null, bs=0;
+    for (const ax of faceAxes){
+      if (ax.move === face) continue;                                      // not the face you started on
+      if (ax.v.dot(fa.v) < -0.9) continue;                                 // nor the one directly opposite it
+      const s = ax.v.dot(D); if (s > bs){ bs = s; best = ax; }
+    }
+    if (!best) { turnAt(pt, reverse); return; }
+    // DIRECTION: rotational sense of the drag about the TARGET face's centre on screen (same rule as the sims)
+    const c = best.v.clone().multiplyScalar(pt.length()).project(cam);
     const r = canvas.getBoundingClientRect();
     const cx = r.left + (c.x*0.5+0.5)*r.width, cy = r.top + (-c.y*0.5+0.5)*r.height;
-    const wx = downX-cx, wy = downY-cy;                                    // grab point relative to the face centre
-    if (Math.hypot(wx,wy) < 4) { turnAt(pt, reverse); return; }            // dead zone: too central to read a sense
+    const wx = downX-cx, wy = downY-cy;
     let inv = (wx*dy - wy*dx) > 0; if (reverse) inv = !inv;
-    addMove(face + (inv?"'":''));
+    addMove(best.move + (inv?"'":''));
   }
   let mode=null, down=null, hitPt=null, hitFace=null, accX=0, accY=0, acted=false;
   const STEP=46, TH=8;
