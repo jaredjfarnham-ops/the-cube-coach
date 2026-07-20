@@ -1843,7 +1843,7 @@ const playSimEl = document.getElementById('playSim');
 const playStatus = document.getElementById('playStatus');
 const playScrText = document.getElementById('playScrambleText');
 const playView = document.getElementById('view-play');
-let playN = 3, playHist = [], playEntry = null;
+let playN = 3, playHist = [], playEntry = null, playMoves = 0;   // playHist = undo stack (drag turns); playMoves = the displayed counter (also counts keyboard turns, resets on solve)
 
 /* Every interactable virtual puzzle auto-appears here. Add an entry → it shows in the dropdown. */
 const PLAY_PUZZLES = [
@@ -1878,19 +1878,20 @@ PLAY_PUZZLES.forEach(p => { if (p.kind==='twisty') TWISTY_TIMER[p.id] = { tw:p.t
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
   isActive: () => !playView.classList.contains('hidden') && playEntry && playEntry.kind==='cube' && playN===3,
-  onTurn: m => { if (m) playHist.push(m); updateStatus(); },
-  onReset: () => { playCube.reset(); playHist=[]; playScrText.textContent=''; updateStatus(); },
+  onTurn: m => { if (m) playHist.push(m); playMoves++; updateStatus(); },   // keyboard turns call onTurn() with no move — count them too, they just aren't undoable
+  onReset: () => { playCube.reset(); playHist=[]; playMoves=0; playScrText.textContent=''; updateStatus(); },
 });
 const renderSim = () => { playSimEl.innerHTML = playEntry.sim.svg3d ? playEntry.sim.svg3d() : playEntry.sim.svg(); };
 function updateStatus() {
   if (!playEntry || playEntry.kind==='twisty') return;     // twisty model manages its own state
   const solved = playEntry.kind==='cube' ? cubeSolvedByColor(playCube) : playEntry.sim.isSolved();
+  if (solved) playMoves = 0;                               // solved → the counter starts fresh, so the next solve counts from 1
   playStatus.classList.toggle('solved', solved);
   playStatus.textContent = solved ? 'Solved ✔'
-    : (playEntry.kind==='cube' && playHist.length) ? playHist.length + ' move' + (playHist.length===1?'':'s') : 'Scrambled';
+    : (playEntry.kind==='cube' && playMoves) ? playMoves + ' move' + (playMoves===1?'':'s') : 'Scrambled';
 }
 function playSelect(entry) {
-  playEntry = entry; playHist = []; playScrText.textContent = ''; busy = false;
+  playEntry = entry; playHist = []; playMoves = 0; playScrText.textContent = ''; busy = false;
   if (entry.kind==='twisty') {                              // 3-D cubing.js model (FTO/Kilominx/Master Pyraminx/Gigaminx/Redi)
     playView.classList.toggle('sim-mode', true);
     document.getElementById('playUndo').style.display = 'none';
@@ -1934,13 +1935,13 @@ function playScramble() {
     else if (tp.experimentalModel) tp.experimentalModel.currentPattern.get().then(kp => { const own = randomModelScramble(kp.kpuzzle); if (own) { tp.experimentalSetupAlg = own; tp.alg = ''; } }).catch(()=>{});   // no cubing scramble → self-scramble with the model's own moves
     playStatus.textContent='Scrambled'; playStatus.classList.remove('solved'); return;
   }
-  if (playEntry.kind==='cube') { const seq=fullScramble(playN); playCube.reset(); playCube.applyInstant(seq); playHist=[]; playScrText.textContent=showMoves(seq); }
+  if (playEntry.kind==='cube') { const seq=fullScramble(playN); playCube.reset(); playCube.applyInstant(seq); playHist=[]; playMoves=0; playScrText.textContent=showMoves(seq); }
   else { const seq=playEntry.sim.scramble(); renderSim(); playScrText.textContent=showMoves(seq); }
   playStatus.textContent='Scrambled'; playStatus.classList.remove('solved');
 }
 async function playUndo() {
   if (busy || playEntry.kind!=='cube' || !playHist.length) return;
-  const m = playHist.pop(); busy = true;
+  const m = playHist.pop(); playMoves = Math.max(0, playMoves-1); busy = true;
   await playCube.animateMove({ axis:m.axis, angle:-m.angle, sel: p => p[m.axis]===m.lvl });
   busy = false; updateStatus();
 }
@@ -1954,7 +1955,7 @@ document.getElementById('playReset').onclick = () => { if (busy) return;
   if (playEntry.kind==='cube') playCube.reset();
   else if (playEntry.kind==='twisty') { const tp=playSimEl.querySelector('twisty-player'); if (tp) { tp.experimentalSetupAlg=''; tp.alg=''; } }   // 3-D model → back to solved
   else { playEntry.sim.reset(); renderSim(); }
-  playHist=[]; playScrText.textContent=''; updateStatus(); };
+  playHist=[]; playMoves=0; playScrText.textContent=''; updateStatus(); };
 document.getElementById('playRecenter').onclick = () => {
   if (playEntry.kind==='cube') playControls.recenter();
   else if (playEntry.kind==='twisty') { /* the 3-D model auto-centres — nothing to recentre */ }
@@ -1965,7 +1966,7 @@ document.addEventListener('keydown', e => {
   if (playView.classList.contains('hidden') || !playEntry || playEntry.kind!=='sim') return;
   if (e.metaKey) return;
   const sim = playEntry.sim;
-  if (e.key==='Delete') { e.preventDefault(); sim.reset(); playHist=[]; playScrText.textContent=''; renderSim(); updateStatus(); return; }
+  if (e.key==='Delete') { e.preventDefault(); sim.reset(); playHist=[]; playMoves=0; playScrText.textContent=''; renderSim(); updateStatus(); return; }
   if (playEntry.id==='sq1') { if (e.key==='/') { e.preventDefault(); sim.snapSlash(0, ()=>renderSim(), ()=>updateStatus()); } return; }   // Square-1: / = right slash (animated)
   if (sim.screenRoles) { simKeyMove(sim, e, { onChange:()=>{ renderSim(); updateStatus(); } }); return; }   // Pyraminx / Skewb / Megaminx
   if (e.altKey) return;
