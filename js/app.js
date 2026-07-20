@@ -1292,19 +1292,22 @@ async function attachTwistyControls(tp, tumbleCfg){
   };
   /* DRAG: turn the layer the drag sweeps — i.e. the ADJACENT face whose turn axis is perpendicular to the
      drag (standard virtual-cube feel), with the drag's rotational sense choosing normal vs prime. */
-  function dragTurn(pt, dx, dy, reverse){
+  function dragTurn(pt, face, dx, dy, reverse){
     if (!faceAxes.length) { turnAt(pt, reverse); return; }
     const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
     const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
     const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
-    const N = pt.clone().normalize();                             // outward surface direction at the hit
+    // Use the TRUE normal of the face you grabbed. (The hit point's radial direction only equals the face
+    // normal at the face centre — off-centre stickers are tilted away from it, which picked the wrong axis.)
+    const fa = faceAxes.find(a => a.move === face);
+    const N = fa ? fa.v.clone() : pt.clone().normalize();
     const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn this drag implies
     let best=null, bd=0.25; for (const ax of faceAxes){ const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; } }
     if (!best) { turnAt(pt, reverse); return; }
     let inv = bd > 0; if (reverse) inv = !inv;                    // cubing moves are clockwise-from-outside (negative about the outward normal)
     addMove(best.move + (inv?"'":''));
   }
-  let mode=null, down=null, hitPt=null, accX=0, accY=0, acted=false;
+  let mode=null, down=null, hitPt=null, hitFace=null, accX=0, accY=0, acted=false;
   const STEP=46, TH=8;
   tp.addEventListener('pointerdown', e => {
     if (e.button!==0 && e.button!==2) return;
@@ -1312,6 +1315,7 @@ async function attachTwistyControls(tp, tumbleCfg){
     const hit=pick(e);
     mode = hit ? 'turn' : (tumbleCfg ? 'tumble' : null);
     hitPt = hit ? hit.point.clone() : null;
+    hitFace = hit ? String(hit.object.userData.quantumMove) : null;   // the face you grabbed → its true normal drives the drag maths
     try { tp.setPointerCapture(e.pointerId); } catch(_){}
   });
   tp.addEventListener('pointermove', e => {
@@ -1320,7 +1324,7 @@ async function attachTwistyControls(tp, tumbleCfg){
       if (acted) return;
       const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
       if (Math.hypot(dx,dy) < TH) return;
-      acted=true; dragTurn(hitPt, dx, dy, down.button===2);
+      acted=true; dragTurn(hitPt, hitFace, dx, dy, down.button===2);
     } else {                                                      // accumulate the tumble drag; the whole-puzzle rotation commits on release, not mid-drag
       accX+=e.movementX; accY+=e.movementY;
     }
