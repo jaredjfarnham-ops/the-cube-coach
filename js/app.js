@@ -1303,35 +1303,21 @@ async function attachTwistyControls(tp, tumbleCfg){
   const turnAt = (pt, reverse) => {                               // CLICK: apply the exact move cubing's own picker chooses for this sticker
     try { const r = pg3d.getClosestMoveToAxis(pt, { invert: !!reverse, depth: 'none' }); if (r && r.move) addMove(String(r.move)); } catch(_){}
   };
-  /* DRAG: turn the layer the drag sweeps — i.e. the ADJACENT face whose turn axis is perpendicular to the
-     drag (standard virtual-cube feel), with the drag's rotational sense choosing normal vs prime. */
-  function dragTurn(pt, face, dx, dy, reverse){
-    if (!faceAxes.length) { turnAt(pt, reverse); return; }
-    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
-    const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
-    const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
-    // Use the TRUE normal of the face you grabbed. (The hit point's radial direction only equals the face
-    // normal at the face centre — off-centre stickers are tilted away from it, which picked the wrong axis.)
+  /* DRAG: turn the face the sticker is ON, taking the direction from the drag's rotational sense about that
+     face's centre ON SCREEN — i.e. from WHERE you grabbed relative to the face, not from the drag angle
+     alone. This is the same rule the Megaminx/Pyraminx sims use (see moveFromDrag in puzzles.js), so the
+     3-D models and the sims feel identical: drag a face and THAT face turns, and which side of the face
+     centre you pull from decides clockwise vs anticlockwise. */
+  function dragTurn(pt, face, downX, downY, dx, dy, reverse){
     const fa = faceAxes.find(a => a.move === face);
-    const N = fa ? fa.v.clone() : pt.clone().normalize();
-    const A = new THREE.Vector3().crossVectors(N, D).normalize();  // axis of the turn this drag implies
-    // Only consider layers that actually CONTAIN the grabbed sticker. Without this, far-side faces (e.g. a
-    // dodecahedron's second ring) project onto the drag axis just as strongly as the neighbouring ones and
-    // can win, so a drag on one side would turn a face nowhere near the cursor.
-    const Pn = pt.clone().normalize();
-    let best=null, bd=0.25;
-    for (const ax of faceAxes){
-      if (ax.move === face) continue;                             // sweeping across a face never turns that face itself
-      if (ax.v.dot(Pn) <= 0.1) continue;                          // far side of the puzzle — its layer can't hold this sticker
-      // ...and the sticker must sit at least as far TOWARD this face as the grabbed face's centre does.
-      // Every neighbour of a face scores the same at its centre, so without this an edge sticker (which
-      // touches only two faces) would still let any neighbour win — e.g. a green/cyan edge turning red.
-      if (ax.v.dot(Pn) < ax.v.dot(N) - 0.02) continue;
-      const d=ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; }
-    }
-    if (!best) { turnAt(pt, reverse); return; }
-    let inv = bd > 0; if (reverse) inv = !inv;                    // cubing moves are clockwise-from-outside (negative about the outward normal)
-    addMove(best.move + (inv?"'":''));
+    if (!fa) { turnAt(pt, reverse); return; }
+    const c = fa.v.clone().multiplyScalar(pt.length()).project(cam);       // that face's centre → NDC
+    const r = canvas.getBoundingClientRect();
+    const cx = r.left + (c.x*0.5+0.5)*r.width, cy = r.top + (-c.y*0.5+0.5)*r.height;
+    const wx = downX-cx, wy = downY-cy;                                    // grab point relative to the face centre
+    if (Math.hypot(wx,wy) < 4) { turnAt(pt, reverse); return; }            // dead zone: too central to read a sense
+    let inv = (wx*dy - wy*dx) > 0; if (reverse) inv = !inv;
+    addMove(face + (inv?"'":''));
   }
   let mode=null, down=null, hitPt=null, hitFace=null, accX=0, accY=0, acted=false;
   const STEP=46, TH=8;
@@ -1350,7 +1336,7 @@ async function attachTwistyControls(tp, tumbleCfg){
       if (acted) return;
       const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
       if (Math.hypot(dx,dy) < TH) return;
-      acted=true; dragTurn(hitPt, hitFace, dx, dy, down.button===2);
+      acted=true; dragTurn(hitPt, hitFace, down.clientX, down.clientY, dx, dy, down.button===2);
     } else {                                                      // accumulate the tumble drag; the whole-puzzle rotation commits on release, not mid-drag
       accX+=e.movementX; accY+=e.movementY;
     }
