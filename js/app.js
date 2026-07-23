@@ -1293,6 +1293,8 @@ async function attachTwistyControls(tp, tumbleCfg){
       if (!turnSet.has(base) || seen.has(base)) continue;
       seen.add(base); faceAxes.push({ move: base, v });
     }
+    // how many parallel layers each face can turn (U, 2U, 3U ... → 3). Used to pick inner layers on drag.
+    for (const f of faceAxes){ let n=1; while (kp.definition.moves[(n+1)+f.move]) n++; f.layers = n; }
   } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
   if (!targets.length || !cam || !canvas) return;
   const rc = new THREE.Raycaster();
@@ -1328,7 +1330,16 @@ async function attachTwistyControls(tp, tumbleCfg){
     }
     if (!best) { turnAt(pt, reverse); return; }
     let inv = bd > 0; if (reverse) inv = !inv;                            // cubing face moves are clockwise-from-outside
-    addMove(best.move + (inv?"'":''));
+    // Inner layers: the deeper the grabbed sticker sits toward the target face, the outer its layer; the
+    // closer to the equator, the more inner. Band 1 = outer (no prefix), band L = innermost (prefix "L").
+    // Same for a drag and its reverse (depth is position-only), so R R' still cancels.
+    let prefix = '';
+    if (best.layers > 1){
+      const depth = best.v.dot(Pn);                                      // ~0.85 next to the face → ~0 at the equator
+      const band = Math.min(best.layers, 1 + Math.floor(Math.max(0, (0.85 - depth)) / (0.8 / best.layers)));
+      if (band > 1) prefix = String(band);
+    }
+    addMove(prefix + best.move + (inv?"'":''));
   }
   let mode=null, down=null, hitPt=null, hitFace=null, accX=0, accY=0, acted=false;
   const STEP=46, TH=8;
@@ -1353,9 +1364,9 @@ async function attachTwistyControls(tp, tumbleCfg){
     }
   });
   const end = e => {
-    if (mode==='turn' && !acted && down && hitPt &&               // a click (no drag) on a sticker → turn its layer
-        Math.hypot(e.clientX-down.clientX, e.clientY-down.clientY) < TH) turnAt(hitPt, down.button===2);
-    else if (mode==='tumble' && tumbleCfg) {                      // commit the tumble on release: rotate by however far you dragged (capped)
+    // NOTE: a bare click no longer turns the clicked face — turning is drag-only, so it always follows the
+    // sticker (adjacent layer + inner depth) and stays reversible. Click just does nothing.
+    if (mode==='tumble' && tumbleCfg) {                           // commit the tumble on release: rotate by however far you dragged (capped)
       const ty=Math.max(-4,Math.min(4,Math.round(accY/STEP))), tx=Math.max(-4,Math.min(4,Math.round(accX/STEP)));
       for (let i=0;i<Math.abs(ty);i++) addMove(ty>0?tumbleCfg.tilt:tumbleCfg.tilt+"'");
       for (let i=0;i<Math.abs(tx);i++) addMove(tx>0?tumbleCfg.spin+"'":tumbleCfg.spin);
