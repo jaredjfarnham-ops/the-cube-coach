@@ -1308,26 +1308,26 @@ async function attachTwistyControls(tp, tumbleCfg){
      alone. This is the same rule the Megaminx/Pyraminx sims use (see moveFromDrag in puzzles.js), so the
      3-D models and the sims feel identical: drag a face and THAT face turns, and which side of the face
      centre you pull from decides clockwise vs anticlockwise. */
-  function dragTurn(pt, face, downX, downY, dx, dy, reverse){
+  function dragTurn(pt, face, dx, dy, reverse){
     const fa = faceAxes.find(a => a.move === face);
     if (!fa || !faceAxes.length) { turnAt(pt, reverse); return; }
     const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
     const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
     const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
-    // TARGET = the neighbouring face the drag heads toward (drag from a sticker toward a face → that face turns)
-    let best=null, bs=0;
+    // The grabbed sticker follows the drag: a turn about axis X moves the point P at velocity (X x P), so
+    // the layer being swept is the one whose axis best lines up with (P x D). Because reversing the drag
+    // flips (P x D), the SAME face is chosen but its sign flips — so dragging back and forth gives X then
+    // X', i.e. R R' cancels. Candidates are limited to faces whose layer actually contains the sticker.
+    const Pn = pt.clone().normalize();
+    const A = new THREE.Vector3().crossVectors(Pn, D).normalize();
+    let best=null, bd=0.3;
     for (const ax of faceAxes){
-      if (ax.move === face) continue;                                      // not the face you started on
-      if (ax.v.dot(fa.v) < -0.9) continue;                                 // nor the one directly opposite it
-      const s = ax.v.dot(D); if (s > bs){ bs = s; best = ax; }
+      if (ax.move === face) continue;                                      // sweeping across a face doesn't turn that face
+      if (ax.v.dot(Pn) <= 0.1) continue;                                   // this layer must contain the grabbed sticker (excludes far-side faces)
+      const d = ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; }
     }
     if (!best) { turnAt(pt, reverse); return; }
-    // DIRECTION: rotational sense of the drag about the TARGET face's centre on screen (same rule as the sims)
-    const c = best.v.clone().multiplyScalar(pt.length()).project(cam);
-    const r = canvas.getBoundingClientRect();
-    const cx = r.left + (c.x*0.5+0.5)*r.width, cy = r.top + (-c.y*0.5+0.5)*r.height;
-    const wx = downX-cx, wy = downY-cy;
-    let inv = (wx*dy - wy*dx) > 0; if (reverse) inv = !inv;
+    let inv = bd > 0; if (reverse) inv = !inv;                            // cubing face moves are clockwise-from-outside
     addMove(best.move + (inv?"'":''));
   }
   let mode=null, down=null, hitPt=null, hitFace=null, accX=0, accY=0, acted=false;
@@ -1347,7 +1347,7 @@ async function attachTwistyControls(tp, tumbleCfg){
       if (acted) return;
       const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
       if (Math.hypot(dx,dy) < TH) return;
-      acted=true; dragTurn(hitPt, hitFace, down.clientX, down.clientY, dx, dy, down.button===2);
+      acted=true; dragTurn(hitPt, hitFace, dx, dy, down.button===2);
     } else {                                                      // accumulate the tumble drag; the whole-puzzle rotation commits on release, not mid-drag
       accX+=e.movementX; accY+=e.movementY;
     }
