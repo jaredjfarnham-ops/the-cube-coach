@@ -1293,8 +1293,10 @@ async function attachTwistyControls(tp, tumbleCfg){
       if (!turnSet.has(base) || seen.has(base)) continue;
       seen.add(base); faceAxes.push({ move: base, v });
     }
-    // how many parallel layers each face can turn (U, 2U, 3U ... → 3). Used to pick inner layers on drag.
-    for (const f of faceAxes){ let n=1; while (kp.definition.moves[(n+1)+f.move]) n++; f.layers = n; }
+    // Turnable layers per face for drag depth. cubing defines moves X, 2X ... nX where the LAST one is the
+    // shared equatorial middle slice (non-standard: on a Megaminx that "2U" is just the equator). Exclude
+    // it, so Megaminx (X,2X → 1 usable) is face-only, Gigaminx (X,2X,3X → 2) and Teraminx keep real inners.
+    for (const f of faceAxes){ let n=1; while (kp.definition.moves[(n+1)+f.move]) n++; f.layers = Math.max(1, n-1); }
   } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
   if (!targets.length || !cam || !canvas) return;
   const rc = new THREE.Raycaster();
