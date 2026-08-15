@@ -11,6 +11,16 @@
   header { padding: 20px 28px 14px; border-bottom: 1px solid #2a3160; }
   header h1 { margin: 0 0 4px; font-size: 22px; letter-spacing:.3px; }
   header p  { margin: 0; color: var(--muted); font-size: 14px; }
+  /* ===== Logo (top-left) ===== */
+  :root { --logo-ink: #e8ecff; }                  /* structural ink of the logo — light on the dark header */
+  [data-theme="light"] { --logo-ink: #1f3346; }   /* …navy on the light header */
+  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; cursor: pointer; flex: none; }
+  .logo-icon { display: block; flex: none; }
+  .logo-icon svg { height: 42px; width: auto; display: block; }
+  .wordmark { font-weight: 800; font-size: 24px; letter-spacing: -0.4px; line-height: 1; white-space: nowrap; }
+  .wordmark .wm-the   { color: var(--logo-ink); }
+  .wordmark .wm-cube  { color: #2e8bd0; }
+  .wordmark .wm-coach { background: linear-gradient(90deg, #16b8a6, #3cc98a); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
 
   /* ===== Mega-menu nav ===== */
   .megawrap { position: relative; z-index: 50; background: rgba(0,0,0,.22); border-bottom: 1px solid #2a3160; }
@@ -56,6 +66,18 @@
   .cat-pz.active .cubing-icon { color: var(--accent-2); }
   .cat-methods { display: flex; flex-wrap: wrap; gap: 26px; flex: 1; }
   [data-theme="light"] .cat-puzzles { border-color: #d6dcec; }
+  .cat-puzzles { max-height: 72vh; overflow-y: auto; }                 /* long Non-WCA family list */
+  .cat-fam-head { font-size: 10px; text-transform: uppercase; letter-spacing: .9px; color: var(--muted); font-weight: 700; padding: 10px 10px 3px; }
+  .cat-fam-head:first-child { padding-top: 2px; }
+  /* custom non-WCA puzzle icons (inline SVG) */
+  .puz-icon { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+  .puz-svg { width: 1em; height: 1em; display: block; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; stroke-linecap: round; }
+  .puz-svg .pz-face { fill: color-mix(in srgb, currentColor 14%, transparent); }
+  .puz-svg .pz-dot { fill: currentColor; stroke: none; }
+  .art-icon.puz-icon { font-size: 58px; color: var(--text); }
+  .home-card:hover .art-icon.puz-icon { color: var(--accent); }
+  .cat-pz .puz-icon { font-size: 19px; width: 22px; color: var(--muted); }
+  .cat-pz.active .puz-icon { color: var(--accent-2); }
 
   /* ===== Placeholder ===== */
   .placeholder { max-width: 740px; margin: 48px auto; padding: 0 24px; }
@@ -103,6 +125,9 @@
   .move:hover { background: var(--panel-2); border-color: var(--accent); transform: translateY(-1px); }
   .move.active { background: var(--accent); border-color: var(--accent); color: #06122e; }
 
+  /* interaction hint under the 3-D twisty models */
+  .tw-moves-hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 10px; }
+
   /* algorithm chips inside lesson text */
   .alg-list { margin: 14px 0 4px; display: flex; flex-direction: column; gap: 8px; }
   .alg-chip { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; background: var(--panel); border: 1px solid #313a6b; color: var(--text); padding: 10px 13px; border-radius: 11px; cursor: pointer; text-align: left; transition: border-color .15s, background .15s; }
@@ -118,7 +143,8 @@
   .layer { position: absolute; top: 0; left: 0; width: 0; height: 0; transform-style: preserve-3d; }
   .cubie { position: absolute; width: var(--cubie); height: var(--cubie); top: calc(var(--cubie)/-2); left: calc(var(--cubie)/-2); transform-style: preserve-3d; }
   .cubie.dim .face { filter: brightness(.4) saturate(.55); }
-  .face { position: absolute; width: var(--cubie); height: var(--cubie); border-radius: 8px; border: 2px solid #0a0d18; background: #15171f; box-shadow: inset 0 0 0 2px rgba(0,0,0,.25); }
+  /* corner radius, border and inset all scale with cubie size (var --cubie), so a 7×7 piece looks like a shrunk 3×3 piece instead of a rounded, gappy tile. On 3×3 this is the original 8px radius / 2px lines. */
+  .face { position: absolute; width: var(--cubie); height: var(--cubie); border-radius: calc(var(--cubie) * var(--rf, .167)); border: max(1px, calc(var(--cubie) / 24)) solid #0a0d18; background: #15171f; box-shadow: inset 0 0 0 max(1px, calc(var(--cubie) / 24)) rgba(0,0,0,.25); }
   .c-U { background:#f7f7f7; } .c-D { background:#ffd500; } .c-F { background:#00a651; }
   .c-B { background:#0050d8; } .c-R { background:#d4202a; } .c-L { background:#ff7416; }
   .face-front { transform: translateZ(var(--half)); }
@@ -160,6 +186,8 @@
   header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   .theme-toggle { background: var(--panel); border: 1px solid #313a6b; color: var(--text); width: 42px; height: 42px; border-radius: 11px; cursor: pointer; font-size: 19px; flex: none; }
   .theme-toggle:hover { border-color: var(--accent); }
+  .patreon-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid #313a6b; color: var(--text); height: 42px; padding: 0 14px; border-radius: 11px; cursor: pointer; font-size: 14px; font-weight: 600; text-decoration: none; flex: none; }
+  .patreon-btn:hover { border-color: var(--accent); color: var(--accent); }
   .puzzle-tab.home-tab { font-weight: 700; }
 
   /* user / profile menu */

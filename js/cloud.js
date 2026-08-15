@@ -11,7 +11,7 @@
   if (typeof supabase === 'undefined' || !supabase.createClient) return;   // offline / file:// → guest-only, no auth UI
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
-  let uid = null, email = null, accountPid = null, prevGuestPid = null;
+  let uid = null, email = null, accountPid = null, prevGuestPid = null, pulledOK = false;   // pulledOK: this session's cloud pull has confirmed state (guards full-set deletes)
   const signedIn = () => !!uid;
   const acctMap = () => JSON.parse(localStorage.getItem('coach-acct-map') || '{}');
   const setAcctMap = m => localStorage.setItem('coach-acct-map', JSON.stringify(m));
@@ -23,6 +23,7 @@
   async function cloudSyncSet(setId) {
     if (!signedIn() || Profiles.currentId() !== accountPid) return;
     const local = getSolves(setId);
+    if (!local.length && !pulledOK) return;   // never wipe a whole set's cloud rows before this session's pull has confirmed its state (guards a not-yet-loaded/failed empty state)
     try {
       await dbOp(async () => {
         if (local.length) {
@@ -30,7 +31,7 @@
           const up = await sb.from('solves').upsert(rows, { onConflict: 'user_id,set_id,t' });
           if (up.error) throw up.error;
         }
-        let del = sb.from('solves').delete().eq('set_id', setId);
+        let del = sb.from('solves').delete().eq('user_id', uid).eq('set_id', setId);   // user-scope the delete too (defence-in-depth beyond RLS; set_id like '333:virtual' is shared across accounts)
         const ts = local.map(s => s.t);
         if (ts.length) del = del.not('t', 'in', '(' + ts.join(',') + ')');
         const dr = await del; if (dr.error) throw dr.error;
@@ -94,6 +95,7 @@
     let rows;
     try { const r = await dbOp(async () => { const r = await sb.from('solves').select('set_id,ms,penalty,t'); if (r.error) throw r.error; return r; }); rows = r.data; }
     catch (e) { console.warn('[cloud] pull failed', e.message || e); setSyncStatus(e && e._reauth ? 'Session expired — sign in again' : 'Sync error: ' + (e.message || e), true); return; }
+    pulledOK = true;   // cloud state confirmed this session → full-set deletes below are now safe
     const cloud = {};
     rows.forEach(r => { (cloud[r.set_id] = cloud[r.set_id] || []).push({ ms: r.ms, p: penFromTxt(r.penalty), t: Number(r.t) }); });
     const d = Profiles.data(); d.times = d.times || {};
@@ -133,7 +135,7 @@
     if (typeof render === 'function') render();
   }
   function onSignOut() {
-    uid = email = accountPid = null;
+    uid = email = accountPid = null; pulledOK = false;   // next sign-in must re-confirm cloud state before any full-set delete
     if (prevGuestPid && Profiles.list().some(u => u.id === prevGuestPid)) Profiles.switchTo(prevGuestPid);
     else if (Profiles.list()[0]) Profiles.switchTo(Profiles.list()[0].id);
     renderAuthUI();

@@ -223,9 +223,9 @@ const sheetPlayer   = makePlayer(scube, document.getElementById('sheetReadout'))
 const trainerPlayer = makePlayer(tcube, null);
 
 /* ---------- Non-cube puzzle simulators (Square-1, Clock), rendered as SVG ---------- */
-const sqSim = makeSquare1(), clockSim = makeClock(), pyraSim = makePyraminx(), skewbSim = makeSkewb(), megaSim = makeMegaminx();
+const sqSim = makeSquare1(), clockSim = makeClock(), pyraSim = makePyraminx(), skewbSim = makeSkewb(), megaSim = makeMegaminx(), rediSim = makeRedi();
 megaSim.flipTurn = true;   // Megaminx face turns read the opposite way from the drag without this
-const SIM = { sq1: sqSim, clock: clockSim, pyra: pyraSim, skewb: skewbSim, mega: megaSim };
+const SIM = { sq1: sqSim, clock: clockSim, pyra: pyraSim, skewb: skewbSim, mega: megaSim, redi: rediSim };
 const SIM_KEYS = {                                       // 3-D sims solvable with the camera-relative u/l/r/b keys
   pyra:  { sim: pyraSim,  map: { u:'U', l:'L', r:'R', b:'B' } },
   skewb: { sim: skewbSim, map: { u:'U', l:'L', r:'R', b:'B' } },
@@ -254,17 +254,15 @@ function simKeyMove(sim, e, opts={}) {          // camera-relative screen-role k
 }
 function attachSimPointer(el, getSim, onChange, hooks={}) {
   let mode=null, sx=0, sy=0, turnV=null, turnTip=null, dnx=0, dny=0;
-  const ORBIT_SWEEP=30;                       // a sticker drag past this becomes a free camera orbit (turns are short flicks)
   el.addEventListener('pointerdown', e => {
     const sim=getSim(); if (!sim) return;
     const fl = e.target.closest('[data-v]');
-    // sticker-down starts PENDING: a short flick turns that piece; a longer sweep promotes to orbit so the
-    // camera can be spun (incl. horizontal/Y) from anywhere, not just the thin empty margins.
+    // DRAG a sticker (any length, or a short flick) to TURN that piece — like the 3-D models. Orbit the
+    // camera by dragging EMPTY space (or double-click to recentre / use the keyboard).
     if (fl && sim.screenRoles) { mode='pending'; turnV=fl.dataset.v; turnTip=fl.dataset.tip; dnx=sx=e.clientX; dny=sy=e.clientY; try{ el.setPointerCapture(e.pointerId); }catch(_){} return; }
     if (sim.rotateView) { mode='orbit'; sx=e.clientX; sy=e.clientY; try{ el.setPointerCapture(e.pointerId); }catch(_){} }
   });
   el.addEventListener('pointermove', e => { const sim=getSim(); if (!sim) return;
-    if (mode==='pending' && sim.rotateView && Math.hypot(e.clientX-dnx, e.clientY-dny) > ORBIT_SWEEP) { mode='orbit'; sx=e.clientX; sy=e.clientY; }
     if (mode==='orbit') { sim.rotateView(e.clientX-sx, e.clientY-sy); sx=e.clientX; sy=e.clientY; onChange(); } });
   el.addEventListener('pointerup', e => {
     const sim=getSim();
@@ -290,7 +288,7 @@ function attachSimPointer(el, getSim, onChange, hooks={}) {
 }
 /* trainer: orbit + click-to-turn for 3-D sims (Pyraminx), driving the timer */
 attachSimPointer(trainerSimEl,
-  () => (SIM[trPuzzle] && SIM[trPuzzle].screenRoles && trCubeMode==='virtual' && !trView.classList.contains('hidden')) ? SIM[trPuzzle] : null,
+  () => (SIM[trPuzzle] && SIM[trPuzzle].screenRoles && trCubeMode==='virtual' && !trView.classList.contains('hidden') && !TWISTY_TIMER[trPuzzle]) ? SIM[trPuzzle] : null,   // Megaminx has an SVG sim too, but in the timer it uses the 3-D twisty — don't let this handler overwrite it
   () => { trainerSimEl.innerHTML = SIM[trPuzzle].svg(); },
   { onTurnStart: () => { tryStartSolve(); },
     onTurn:      () => { if (trState==='running' && SIM[trPuzzle].isSolved()) stopSolve(); } });
@@ -545,6 +543,14 @@ const clockActive = () => trPuzzle==='clock' && trCubeMode==='virtual' && !trVie
   const end=()=>{ drag=null; }; trainerSimEl.addEventListener('pointerup', end); trainerSimEl.addEventListener('pointercancel', end);
 })();
 document.addEventListener('keydown', e => { if (clockActive() && e.key==='Delete') { e.preventDefault(); resetAttempt(); } });
+/* Interactive Redi solving in the trainer (Virtual mode): click a corner sticker to twist it (Shift = counter-clockwise). */
+trainerSimEl.addEventListener('pointerdown', e => {
+  if (trPuzzle!=='redi' || trCubeMode!=='virtual' || trView.classList.contains('hidden')) return;
+  const cn = e.target.closest('[data-corner]'); if (!cn) return;
+  tryStartSolve();
+  rediSim.twist(+cn.dataset.corner, e.shiftKey); trainerSimEl.innerHTML = rediSim.svg();
+  if (trState==='running' && rediSim.isSolved()) stopSolve();
+});
 
 /* ================================================================
    NOTATION LESSON
@@ -905,9 +911,50 @@ function megaScramble() {                           // Megaminx: 7 lines of R±�
   }
   return [lines.join('\n')];                        // single pre-wrapped block
 }
+/* ---- Non-WCA scramble generators (random-move). Non-WCA sizes have no official standard, so these
+   are app-defined and labelled as such in each puzzle's pages; refine once real models exist. ---- */
+function minxScrambleN(layers) {                    // Megaminx-family: R±±/D±± rows + U; inner-layer turns for >3 layers
+  const lines=[];
+  for (let l=0;l<7;l++) { const row=[];
+    for (let i=0;i<5;i++){ row.push('R'+(rnd(2)?'++':'--')); row.push('D'+(rnd(2)?'++':'--')); }
+    row.push(rnd(2)?'U':"U'"); lines.push(row.join(' ')); }
+  if (layers>3) { const inner=[]; const n=(layers-3)*10;       // app-defined inner-layer turns: 2R±±, 3R±± … inward
+    for (let i=0;i<n;i++){ const d=2+rnd(layers-2); inner.push(d+(rnd(2)?'R':'D')+(rnd(2)?'++':'--')); }
+    lines.push(inner.join(' ')); }
+  return [lines.join('\n')];
+}
+function pyraScrambleN(layers) {                    // Pyraminx-family: U/L/R/B faces, wide turns for inner layers, then tips
+  const F=['U','L','R','B'], seq=[]; let last=null; const n = 8 + layers*5;
+  while (seq.length < n) { const f=F[rnd(4)]; if (f===last) continue; last=f;
+    const w = layers>3 ? 1+rnd(layers-2) : 1; const tok = w===1?f : w===2?f+'w' : w+f+'w';
+    seq.push(tok + (rnd(2)?"'":"")); }
+  ['u','l','r','b'].forEach(t => { if (rnd(3)) seq.push(t + (rnd(2)?"'":"")); });
+  return seq;
+}
+function ctoScramble() {                            // Corner-Turning Octahedron: 6 vertices L R F B U D
+  const V=['L','R','F','B','U','D'], M=['',"'",'2'], seq=[]; let last=null;
+  while (seq.length < 18) { const v=V[rnd(6)]; if (v===last) continue; last=v; seq.push(v+M[rnd(3)]); }
+  return seq;
+}
+function rediScramble() {                           // Redi: 4 top corners R L F B + 4 bottom r l f b
+  const C=['R','L','F','B','r','l','f','b'], seq=[]; let last=null;
+  while (seq.length < 18) { const c=C[rnd(8)]; if (c.toUpperCase()===(last||'').toUpperCase()) continue; last=c; seq.push(c+(rnd(2)?"'":"")); }
+  return seq;
+}
+function skewbScrambleN(layers) {                   // Skewb-family: R L U B corner twists, wide (inner-cut) for Master/Elite
+  const F=['R','L','U','B'], seq=[]; let last=null; const n = 8 + layers*4;
+  while (seq.length < n) { const f=F[rnd(4)]; if (f===last) continue; last=f;
+    const tok = layers>2 && rnd(2) ? f+'w' : f; seq.push(tok+(rnd(2)?"'":"")); }
+  return seq;
+}
 /* Square-1 & Clock scrambles come from their simulators (legal moves; sim is left showing the state). */
 const SHAPED_SCRAMBLE = { pyra:()=>pyraSim.scramble(), skewb:()=>skewbSim.scramble(), mega:()=>megaScramble(),   // proper WCA R++/D--/U notation (the SVG sim's single-face turns can't represent it)
-                          sq1:()=>sqSim.scramble(), clock:()=>clockSim.scramble() };
+                          sq1:()=>sqSim.scramble(), clock:()=>clockSim.scramble(),
+                          // non-WCA (no sim): app-defined random-move generators
+                          cto:()=>ctoScramble(), redi:()=>rediScramble(),
+                          masterkilo:()=>minxScrambleN(4), giga:()=>minxScrambleN(5), elitekilo:()=>minxScrambleN(6), tera:()=>minxScrambleN(7),
+                          profpyra:()=>pyraScrambleN(5), royalpyra:()=>pyraScrambleN(6),
+                          masterskewb:()=>skewbScrambleN(3), eliteskewb:()=>skewbScrambleN(4), skewb7:()=>skewbScrambleN(7) };
 
 function fullScramble(puzzle) {                    // whole-solve scramble in WCA format (proper move set, restriction & length)
   if (SHAPED_SCRAMBLE[puzzle]) return SHAPED_SCRAMBLE[puzzle]();
@@ -956,7 +1003,8 @@ function updateStatusPill() {
 const WCA_EVENT = { '3x3':'333','2x2':'222','4x4':'444','5x5':'555','6x6':'666','7x7':'777',
   'oh':'333oh','3bld':'333bf','4bld':'444bf','5bld':'555bf','fmc':'333fm',
   'pyra':'pyram','skewb':'skewb','sq1':'sq1','clock':'clock',
-  'fto':'fto','mpyra':'master_tetraminx','kilo':'kilominx' };
+  'fto':'fto','mpyra':'master_tetraminx','kilo':'kilominx',
+  'pyramorphix':'222' };   // Pyramorphix is a 2×2 mechanism → official 2×2 scrambles
   // NB: Megaminx is intentionally absent — its SVG sim can't render WCA "R++/D--" notation, so it
   // falls back to its own (renderable) scramble generator. Re-add once a notation adapter exists.
 /* WCA Clock notation (U3- R5+ … y2 …) → this sim's pin/turn tokens; front moves until y2, then back. */
@@ -1018,6 +1066,7 @@ function applyScrambleDisplay() {
   trScrambleEl.textContent = showMoves(trScramble);
   fitScramble();                                                    // size multi-line (Megaminx) rows to fit
   trAnswer.classList.remove('show'); trAnswer.innerHTML = '';
+  if (TWISTY_TIMER[trPuzzle] && trCubeMode==='virtual') buildTwistyTimer();   // load the fresh scramble into the 3-D model
 }
 let scrambleSeq = 0;                                  // guards async scrambles against rapid "new scramble" clicks
 function newScramble() {
@@ -1121,12 +1170,15 @@ function reloadTimes() { trSolves = getSolves(statsKey()); renderStats(); render
 function tick() { trTimerEl.textContent = PREFS.hideTimer ? 'solving…' : fmt(performance.now()-trStart); trRAF = requestAnimationFrame(tick); }
 let trInspStart=0, trInspRAF=0, trPenalty=0;
 let trCooldownUntil = 0;   // brief lockout after a solve so a still-held mouse can't auto-start the next virtual solve on reset
-function startSolve() { trState='running'; trStart=performance.now(); trTimerEl.classList.remove('armed','inspecting'); tick(); }
+function startSolve() {
+  const ae=document.activeElement; if (ae && ae!==document.body && ae.blur) ae.blur();   // drop focus off the Event/Mode dropdowns so a sloppy stop can't type-ahead-switch the puzzle (which would reset trState and lose the solve)
+  trState='running'; trStart=performance.now(); trTimerEl.classList.remove('armed','inspecting'); tick(); }
 function tryStartSolve() { if (trState!=='idle' || performance.now() < trCooldownUntil) return; startSolve(); }   // virtual-solve start, gated by the post-solve cooldown
 function startInspection() { trState='inspecting'; trInspStart=performance.now(); trTimerEl.classList.remove('armed'); trTimerEl.classList.add('inspecting'); inspTick(); }
 function inspTick() { const left = 15 - (performance.now()-trInspStart)/1000; trTimerEl.textContent = left<=0 ? '+'+(-left).toFixed(1) : left.toFixed(1); trInspRAF = requestAnimationFrame(inspTick); }
 function endInspection() { const insp = (performance.now()-trInspStart)/1000; cancelAnimationFrame(trInspRAF); trPenalty = insp>17 ? 'dnf' : insp>15 ? 2000 : 0; startSolve(); }
 function stopSolve() {
+  if (trState !== 'running') return;   // ignore duplicate/late stops (e.g. several deferred twisty solved-fires queued before the first runs)
   cancelAnimationFrame(trRAF); trState='idle'; trTimerEl.classList.remove('armed');
   trCooldownUntil = performance.now() + 1000;   // ignore solve-starts for 1s (mouse is often still down through the reset)
   const rawMs = performance.now()-trStart;
@@ -1164,9 +1216,264 @@ function resetAttempt() {
    4BLD = 4×4, 5BLD = 5×5), so they render and scramble exactly like that cube. Shaped puzzles
    (Pyraminx/Megaminx/Skewb/Square-1/Clock) are absent here — they have no 3-D renderer. */
 const CUBE_N = { '2x2':2, '3x3':3, '4x4':4, '5x5':5, '6x6':6, '7x7':7,
-                 'oh':3, '3bld':3, 'mbld':3, 'fmc':3, '4bld':4, '5bld':5 };
+                 'oh':3, '3bld':3, 'mbld':3, 'fmc':3, '4bld':4, '5bld':5,
+                 'pyramorphix':2 };   // Pyramorphix is mechanically a 2×2 → reuse the cube engine as its (rough-shape) virtual model
 const isRenderable = p => Object.prototype.hasOwnProperty.call(CUBE_N, p);
 const isLLstep = () => trMode==='step' && (trKind==='oll' || trKind==='pll');
+
+/* ---- Virtual 3-D timer: an interactive cubing.js model you solve on screen. Auto-starts on the first
+   move and auto-stops when solved (via experimentalModel.currentPattern + a solved check). Offered for
+   every non-WCA puzzle that has a 3-D model — TWISTY_TIMER is filled from PLAY_PUZZLES (twisty entries)
+   after that list is defined. ---- */
+const TWISTY_TIMER = {};   // id -> { tw | twDesc }
+function twPatternSolved(kp){ try { return kp.experimentalIsSolved({ ignorePuzzleOrientation:true, ignoreCenterOrientation:true }); } catch(e){ return kp.isIdentical(kp.kpuzzle.defaultPattern()); } }
+/* A random scramble in a MODEL's own move notation, for geometry puzzles whose app-text scramble the
+   model can't parse. Skips whole-puzzle rotations (names ending in 'v') and avoids repeating a move. */
+function randomModelScramble(kpuzzle){
+  const moves = (kpuzzle && kpuzzle.definition && kpuzzle.definition.moves) || {};
+  const names = Object.keys(moves).filter(n => !/v$/.test(n));
+  if (!names.length) return '';
+  const seq = []; let last = '';
+  for (let i=0; i<25; i++){ let n, t=0; do { n = names[Math.floor(Math.random()*names.length)]; } while (n===last && ++t<6); last = n; seq.push(n); }
+  return seq.join(' ');
+}
+/* Per-puzzle camera config for the 3-D models. For FTO we lift cubing's default ±35° latitude clamp
+   (latLimit:90) so the camera can orbit the full sphere freely — no snap on release — and map the arrow
+   keys to whole-puzzle rotations (rotKeys) for setting a specific face as the top. */
+const TW_CAM_SNAP = { fto: { init:{latitude:20,longitude:0}, latLimit:90,
+  // Camera fully unlocked: full latitude (±90) and NO longitude snap on release — drag orbits freely to any angle.
+  // arrow-key reorientation. Face-axis rotations alone only reach half the orientations (tetrahedral
+  // orbit), so include F_Rv/F_Lv (edge-axis) — with Dv/Lv these reach EVERY orientation, incl. yellow-top.
+  rotKeys:{ ArrowUp:'F_Rv', ArrowDown:'F_Lv', ArrowLeft:'Dv', ArrowRight:'Lv' } } };
+function snapTwistyOrbit(snap, o){
+  const lat  = snap.lats ? snap.lats.reduce((a,b) => Math.abs(b-o.latitude) < Math.abs(a-o.latitude) ? b : a) : o.latitude;
+  const long = snap.longStep ? (((Math.round(o.longitude/snap.longStep)*snap.longStep) % 360) + 360) % 360 : o.longitude;
+  return { latitude: lat, longitude: long };
+}
+/* Drag-to-tumble: mouse-drag rotates the WHOLE 3-D puzzle (like the app's own cubes) so any face —
+   including the bottom — can be stood upright on top, no arrow keys needed. Each puzzle's two moves are a
+   VERIFIED generating pair for its full rotation group (octahedron/cube-variant = 24, dodecahedron = 60,
+   tetrahedron = 12) — face-only/corner-only pairs get stuck in a subgroup, so these were checked by
+   counting the rotation orbit. vertical drag = 'tilt' axis, horizontal drag = 'spin' axis. */
+const TW_TUMBLE = {
+  fto:{tilt:'D_BR_R_Fv',spin:'D_F_L_BLv'}, cto:{tilt:'DBRRFv',spin:'DFLBLv'},                 // octahedra: perpendicular vertex 4-folds
+  mega:{tilt:'Fv',spin:'Uv'}, kilo:{tilt:'Fv',spin:'Uv'}, giga:{tilt:'Fv',spin:'Uv'}, tera:{tilt:'Fv',spin:'Uv'},   // dodecahedra: two face 5-folds
+  mpyra:{tilt:'Rv',spin:'Lv'}, profpyra:{tilt:'Rv',spin:'Lv'}, royalpyra:{tilt:'Rv',spin:'Lv'},   // tetrahedra: two vertex 3-folds
+  redi:{tilt:'Lv',spin:'Dv'}, masterskewb:{tilt:'Lv',spin:'Dv'}, eliteskewb:{tilt:'Lv',spin:'Dv'},   // cube-variants: perpendicular face 4-folds
+};
+/* Give every 3-D model NxN-style input: DRAG or CLICK a sticker turns that sticker's layer (right-click /
+   right-drag = reverse); DRAG empty space tumbles the whole puzzle. cubing has no drag-to-turn and ties
+   orbit + click-press to one canvas tracker, so we set experimentalDragInput='none' and own all pointer
+   input, reusing cubing's exposed THREE puzzle object + camera to raycast, its own getClosestMoveToAxis
+   picker (the turn is always the exact move cubing itself would apply — never the wrong face), and its
+   move animator. */
+async function attachTwistyControls(tp, tumbleCfg){
+  let THREE, pg3d, targets, cam, canvas, faceAxes=[];
+  try {
+    THREE = await import('/vendor/cubing/npm/three/three.module.js');
+    pg3d = await tp.experimentalCurrentThreeJSPuzzleObject();
+    targets = (pg3d && pg3d.experimentalGetControlTargets) ? pg3d.experimentalGetControlTargets() : [];
+    cam = await [...await tp.experimentalCurrentVantages()][0].camera();
+    canvas = [...await tp.experimentalCurrentCanvases()][0];
+    const kp = (await tp.experimentalModel.currentPattern.get()).kpuzzle;
+    const turnSet = new Set(Object.keys(kp.definition.moves).map(m => m.replace(/(['0-9]+)$/,''))
+      .filter(m => !/v$/.test(m) && !/^\d/.test(m)));             // outer-layer turn families (drop rotations and 2X inner slices)
+    // Build the face-turn axes. Do NOT match stickerDat's axis names against move names: stickerDat uses an
+    // internal notation that only partly overlaps (Megaminx: BF/E/C/A/I where the moves are B/DR/DL/FR/FL),
+    // so name-matching silently dropped real faces AND let same-named EDGE axes in. Instead ask cubing's own
+    // picker what move lies along each axis, and keep the first (face) axis for each distinct move.
+    const seen = new Set();
+    faceAxes = [];
+    for (const a of (pg3d.stickerDat && pg3d.stickerDat.axis || [])) {
+      const v = new THREE.Vector3(...a.coordinates).normalize();
+      let mv = null;
+      try { const r = pg3d.getClosestMoveToAxis(v.clone().multiplyScalar(2), { invert:false, depth:'none' }); mv = (r && r.move) ? String(r.move) : null; } catch(_){}
+      if (!mv) continue;
+      const base = mv.replace(/(['0-9]+)$/,'');
+      if (!turnSet.has(base) || seen.has(base)) continue;
+      seen.add(base); faceAxes.push({ move: base, v });
+    }
+    // Turnable layers per face for drag depth. cubing defines moves X, 2X ... nX where the LAST one is the
+    // shared equatorial middle slice (non-standard: on a Megaminx that "2U" is just the equator). Exclude
+    // it, so Megaminx (X,2X → 1 usable) is face-only, Gigaminx (X,2X,3X → 2) and Teraminx keep real inners.
+    for (const f of faceAxes){ let n=1; while (kp.definition.moves[(n+1)+f.move]) n++; f.layers = Math.max(1, n-1); }
+  } catch(_) { return; }                                          // model API unavailable → leave it inert (native input already off)
+  if (!targets.length || !cam || !canvas) return;
+  const rc = new THREE.Raycaster();
+  const addMove = m => { try { tp.experimentalAddMove(m); } catch(_){} };
+  const pick = e => { const r=canvas.getBoundingClientRect();
+    rc.setFromCamera(new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1), (cam.updateMatrixWorld(), cam));
+    return rc.intersectObjects(targets, true)[0] || null; };
+  const turnAt = (pt, reverse) => {                               // CLICK: apply the exact move cubing's own picker chooses for this sticker
+    try { const r = pg3d.getClosestMoveToAxis(pt, { invert: !!reverse, depth: 'none' }); if (r && r.move) addMove(String(r.move)); } catch(_){}
+  };
+  /* DRAG: turn the face the sticker is ON, taking the direction from the drag's rotational sense about that
+     face's centre ON SCREEN — i.e. from WHERE you grabbed relative to the face, not from the drag angle
+     alone. This is the same rule the Megaminx/Pyraminx sims use (see moveFromDrag in puzzles.js), so the
+     3-D models and the sims feel identical: drag a face and THAT face turns, and which side of the face
+     centre you pull from decides clockwise vs anticlockwise. */
+  function dragTurn(pt, face, dx, dy, reverse){
+    const fa = faceAxes.find(a => a.move === face);
+    if (!fa || !faceAxes.length) { turnAt(pt, reverse); return; }
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0);
+    const up    = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1);
+    const D = right.multiplyScalar(dx).add(up.multiplyScalar(-dy)); if (D.lengthSq() < 1e-6) return; D.normalize();
+    // The grabbed sticker follows the drag: a turn about axis X moves the point P at velocity (X x P), so
+    // the layer being swept is the one whose axis best lines up with (P x D). Because reversing the drag
+    // flips (P x D), the SAME face is chosen but its sign flips — so dragging back and forth gives X then
+    // X', i.e. R R' cancels. Candidates are limited to faces whose layer actually contains the sticker.
+    const Pn = pt.clone().normalize();
+    const A = new THREE.Vector3().crossVectors(Pn, D).normalize();
+    let best=null, bd=0.3;
+    for (const ax of faceAxes){
+      if (ax.move === face) continue;                                      // sweeping across a face doesn't turn that face
+      if (ax.v.dot(Pn) <= 0.1) continue;                                   // this layer must contain the grabbed sticker (excludes far-side faces)
+      const d = ax.v.dot(A); if (Math.abs(d) > Math.abs(bd)){ bd=d; best=ax; }
+    }
+    if (!best) { turnAt(pt, reverse); return; }
+    let inv = bd > 0; if (reverse) inv = !inv;                            // cubing face moves are clockwise-from-outside
+    // Inner layers: the deeper the grabbed sticker sits toward the target face, the outer its layer; the
+    // closer to the equator, the more inner. Band 1 = outer (no prefix), band L = innermost (prefix "L").
+    // Same for a drag and its reverse (depth is position-only), so R R' still cancels.
+    let prefix = '';
+    if (best.layers > 1){
+      const depth = best.v.dot(Pn);                                      // ~0.85 next to the face → ~0 at the equator
+      const band = Math.min(best.layers, 1 + Math.floor(Math.max(0, (0.85 - depth)) / (0.8 / best.layers)));
+      if (band > 1) prefix = String(band);
+    }
+    addMove(prefix + best.move + (inv?"'":''));
+  }
+  let mode=null, down=null, hitPt=null, hitFace=null, accX=0, accY=0, acted=false;
+  const STEP=46, TH=8;
+  tp.addEventListener('pointerdown', e => {
+    if (e.button!==0 && e.button!==2) return;
+    down=e; acted=false; accX=accY=0;
+    const hit=pick(e);
+    mode = hit ? 'turn' : (tumbleCfg ? 'tumble' : null);
+    hitPt = hit ? hit.point.clone() : null;
+    hitFace = hit ? String(hit.object.userData.quantumMove) : null;   // the face you grabbed → its true normal drives the drag maths
+    try { tp.setPointerCapture(e.pointerId); } catch(_){}
+  });
+  tp.addEventListener('pointermove', e => {
+    if (!mode || !down) return;
+    if (mode==='turn') {                                          // drag a sticker past a small threshold → turn its layer
+      if (acted) return;
+      const dx=e.clientX-down.clientX, dy=e.clientY-down.clientY;
+      if (Math.hypot(dx,dy) < TH) return;
+      acted=true; dragTurn(hitPt, hitFace, dx, dy, down.button===2);
+    } else {                                                      // accumulate the tumble drag; the whole-puzzle rotation commits on release, not mid-drag
+      accX+=e.movementX; accY+=e.movementY;
+    }
+  });
+  const end = e => {
+    // NOTE: a bare click no longer turns the clicked face — turning is drag-only, so it always follows the
+    // sticker (adjacent layer + inner depth) and stays reversible. Click just does nothing.
+    if (mode==='tumble' && tumbleCfg) {                           // commit the tumble on release: rotate by however far you dragged (capped)
+      const ty=Math.max(-4,Math.min(4,Math.round(accY/STEP))), tx=Math.max(-4,Math.min(4,Math.round(accX/STEP)));
+      for (let i=0;i<Math.abs(ty);i++) addMove(ty>0?tumbleCfg.tilt:tumbleCfg.tilt+"'");
+      for (let i=0;i<Math.abs(tx);i++) addMove(tx>0?tumbleCfg.spin+"'":tumbleCfg.spin);
+    }
+    mode=null; down=null; acted=false;
+    try { tp.releasePointerCapture(e.pointerId); } catch(_){}
+  };
+  tp.addEventListener('pointerup', end);
+  tp.addEventListener('pointercancel', end);
+  tp.addEventListener('contextmenu', e => e.preventDefault());     // right-click reverses, so suppress its menu
+}
+/* Secondary setup for a 3-D model: the initial camera view and single-letter keyboard turning + the hint.
+   (Mouse turning/tumbling is owned by attachTwistyControls; the playground disables cubing's native input.) */
+function renderTwistyMoves(tp, containerEl, opts){
+  opts = opts || {};
+  containerEl.innerHTML='';
+  if (!tp || !tp.experimentalModel) return;
+  if (opts.snap){ tp._twSnap = opts.snap;                          // snap free-orbit on release
+    if (opts.snap.latLimit) { try { tp.cameraLatitudeLimit = opts.snap.latLimit; } catch(_){} }   // lift the ±35° clamp so any face reaches the top
+    try { tp.experimentalModel.twistySceneModel.orbitCoordinatesRequest.set(opts.snap.init); } catch(_){} }
+  tp.experimentalModel.currentPattern.get().then(kp => {
+    const names = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {})
+      .filter(n => !/^\d/.test(n) && !/v$/.test(n));               // outer layers (drop inner 2U/3U… and rotations …v)
+    tp._twMoves = names;                                           // for keyboard turning (single-letter face keys)
+    tp._twRots = Object.keys((kp.kpuzzle && kp.kpuzzle.definition && kp.kpuzzle.definition.moves) || {}).filter(n => /v$/.test(n) && !/_/.test(n));   // whole-puzzle rotations (arrow keys, generic fallback)
+    tp._twArrows = (opts.snap && opts.snap.rotKeys) || null;       // explicit per-puzzle arrow→rotation map (FTO)
+    const hint=document.createElement('div'); hint.className='tw-moves-hint';
+    hint.innerHTML='<b>Drag or click a piece</b> to turn its layer (<b>right-click</b> reverses) · <b>drag empty space</b> to tumble the puzzle · or a face key (Shift = reverse)';
+    containerEl.appendChild(hint);
+  }).catch(()=>{});
+}
+/* the 3-D model the user is currently interacting with (playground puzzle, or the virtual-timer model) */
+function activeTwisty(){
+  if (!playView.classList.contains('hidden') && playEntry && playEntry.kind==='twisty') return playSimEl.querySelector('twisty-player');
+  if (!trView.classList.contains('hidden') && trCubeMode==='virtual' && TWISTY_TIMER[trPuzzle]) return trTwistyEl;
+  return null;
+}
+/* Keyboard turning for the 3-D models: a single-letter key = that face move; Shift = reverse (′). */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  const tp = activeTwisty(); if (!tp) return;
+  // Arrow keys reorient the WHOLE puzzle (so any face can be brought to the top). Playground only —
+  // a reorientation would otherwise break the timer's exact solved-check.
+  if (/^Arrow/.test(e.key) && !playView.classList.contains('hidden') && playEntry && playEntry.kind==='twisty') {
+    const rot = (tp._twArrows && tp._twArrows[e.key])              // explicit map (reaches every orientation)
+      || (tp._twRots && tp._twRots.length && tp._twRots[{ ArrowUp:0, ArrowRight:1, ArrowDown:2, ArrowLeft:3 }[e.key] % tp._twRots.length]);   // generic fallback
+    if (rot) { e.preventDefault(); try { tp.experimentalAddMove(rot); } catch(_){} }
+    return;
+  }
+  // single-letter key = that face move; Shift = reverse (multi-letter moves stay mouse-only)
+  if (e.key.length !== 1 || !tp._twMoves) return;
+  const mv = tp._twMoves.find(n => n.toUpperCase() === e.key.toUpperCase());
+  if (!mv) return;
+  e.preventDefault();
+  try { tp.experimentalAddMove(e.shiftKey ? mv + "'" : mv); } catch(_){}
+});
+/* after an orbit drag on a snap-enabled model (FTO), settle the camera to the nearest clean vertex/face view */
+document.addEventListener('pointerup', () => {
+  const tp = activeTwisty(); if (!tp || !tp._twSnap || !tp.experimentalModel) return;
+  const M = tp.experimentalModel.twistySceneModel;
+  M.orbitCoordinates.get().then(o => M.orbitCoordinatesRequest.set(snapTwistyOrbit(tp._twSnap, o))).catch(()=>{});
+});
+let trTwistyUnsub = null, trTwistyEl = null;
+function teardownTwistyTimer(){ if (trTwistyUnsub){ trTwistyUnsub(); trTwistyUnsub=null; }
+  if (trTwistyEl){ if (trTwistyEl.parentNode===trainerSimEl) trainerSimEl.innerHTML=''; trTwistyEl=null; } }   // drop the element (frees its WebGL context)
+function buildTwistyTimer(){
+  const cfg = TWISTY_TIMER[trPuzzle]; if (!cfg){ teardownTwistyTimer(); return; }
+  teardownTwistyTimer();
+  const tp = document.createElement('twisty-player');
+  tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','6');
+  tp.experimentalMovePressInput = 'basic';                         // mouse turning: drag/click a piece to turn it
+  tp.style.cssText = 'width:100%;max-width:300px;height:280px;margin:0 auto;touch-action:none';   // touch-action:none → touch/trackpad drags turn pieces instead of scrolling
+  if (cfg.tw) tp.setAttribute('puzzle', cfg.tw); else if (cfg.twDesc) tp.experimentalPuzzleDescription = cfg.twDesc;
+  const scr = Array.isArray(trScramble) ? trScramble.join(' ') : String(trScramble || '');
+  if (scr.trim()) { try { tp.experimentalSetupAlg = scr; tp.alg = ''; } catch(e){} }   // try the app scramble (a no-op for geometry puzzles)
+  trainerSimEl.innerHTML = ''; trainerSimEl.appendChild(tp); trTwistyEl = tp;
+  const mw = document.createElement('div'); trainerSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { snap: TW_CAM_SNAP[trPuzzle] });   // move buttons (+ FTO orbit-snap)
+  const mine = tp;
+  setTimeout(async () => {
+    if (trTwistyEl !== mine || !tp.experimentalModel) return;
+    try {                                                                // if the app scramble was a no-op, self-scramble with the model's own moves
+      const kp = await tp.experimentalModel.currentPattern.get();
+      if (trTwistyEl !== mine) return;
+      if (kp.isIdentical(kp.kpuzzle.defaultPattern())) {
+        const own = randomModelScramble(kp.kpuzzle);
+        if (own) { tp.experimentalSetupAlg = own; tp.alg = ''; await new Promise(r=>setTimeout(r,450)); }
+      }
+    } catch(e){}
+    if (trTwistyEl !== mine || !tp.experimentalModel) return;
+    const prop = tp.experimentalModel.currentPattern;
+    // Baseline = the settled scrambled position. Start the timer only when the position actually CHANGES
+    // from it (a real move) — robust against extra scramble-settle fires, not just skipping the first one.
+    // Defer stopSolve out of the listener dispatch: stopSolve -> newScramble -> buildTwistyTimer would
+    // remove THIS listener (and drop the player) mid-callback.
+    let baseline = null; try { baseline = await prop.get(); } catch(e){}
+    if (trTwistyEl !== mine) return;
+    const listener = (kp) => {
+      if (trState === 'idle') { if (!baseline || !kp.isIdentical(baseline)) tryStartSolve(); }   // first real move starts the clock
+      else if (trState === 'running' && twPatternSolved(kp)) setTimeout(stopSolve, 0);            // solved → stop (deferred)
+    };
+    prop.addFreshListener(listener);
+    trTwistyUnsub = () => { try { prop.removeFreshListener(listener); } catch(e){} };
+  }, 700);
+}
 function configTcube() {
   const ok = isRenderable(trPuzzle);
   trView.classList.toggle('no-cube', !ok);
@@ -1175,9 +1482,11 @@ function configTcube() {
   // Cube-interaction options for THIS puzzle
   const P=['physical','Physical — Space timer'], M=['mouse','Virtual — mouse'], K=['keyboard','Virtual — keyboard'];
   let opts = ok ? (CUBE_N[trPuzzle]===3 ? [P,M,K] : [P,M])   // 3×3 cubes: keyboard too; big cubes: mouse only
+              : TWISTY_TIMER[trPuzzle] ? [P, ['virtual','Virtual — 3-D model']]   // interactive cubing.js 3-D model
               : SIM_KEYS[trPuzzle] ? [P, ['virtual','Virtual — mouse & keyboard']]   // 3-D sim (Pyraminx)
               : trPuzzle==='clock' ? [P, ['virtual','Virtual — click & drag']]   // interactive clock
               : null;                                         // display-only sim (Square-1/Megaminx)
+              // NB: Redi is a twisty timer (handled by TWISTY_TIMER above) → it gets the 3-D model, not the old SVG-net mode
   const row = document.getElementById('trCubeRow'), sel = document.getElementById('trCubeMode');
   row.style.display = opts ? '' : 'none';
   if (opts) { sel.innerHTML = opts.map(o => `<option value="${o[0]}">${o[1]}</option>`).join('');
@@ -1191,6 +1500,10 @@ function applyCubeMode() {
   trView.classList.toggle('cube-virtual', trCubeMode!=='physical');
   trCubeControls.rebuildMap();
   trCubeControls.setInteract({ drag: ok && trCubeMode==='mouse', keys: ok && trCubeMode==='keyboard' });
+  if (TWISTY_TIMER[trPuzzle]) {                                         // virtual 3-D model timer
+    trView.classList.toggle('has-sim', trCubeMode==='virtual');
+    if (trCubeMode==='virtual') buildTwistyTimer(); else teardownTwistyTimer();
+  } else teardownTwistyTimer();
   updateTrHint();
 }
 function setActive(sel, btn) { document.querySelectorAll('#view-trainer '+sel).forEach(x=>x.classList.toggle('on', x===btn)); }
@@ -1379,11 +1692,51 @@ const EVENT = {
   '3x3':'333', 'oh':'333oh', '2x2':'222', '4x4':'444', '5x5':'555', '6x6':'666', '7x7':'777',
   'pyra':'pyram', 'mega':'minx', 'skewb':'skewb', 'sq1':'sq1', 'clock':'clock',
   '3bld':'333bf', 'fmc':'333fm', 'mbld':'333mbf', '4bld':'444bf', '5bld':'555bf',
-  'fto':'pyram', 'mpyra':'pyram', 'kilo':'minx',   // non-WCA: no dedicated icon — closest shape stand-in
+  // non-WCA: no dedicated glyphs — closest shape stand-ins
+  'fto':'pyram', 'cto':'pyram', 'mpyra':'pyram', 'profpyra':'pyram', 'royalpyra':'pyram',
+  'kilo':'minx', 'masterkilo':'minx', 'giga':'minx', 'elitekilo':'minx', 'tera':'minx',
+  'masterskewb':'skewb', 'eliteskewb':'skewb', 'redi':'333',
 };
-function cubeArt(p) {
-  return `<span class="cubing-icon event-${EVENT[p.id] || '333'} art-icon"></span>`;
-}
+/* Custom inline-SVG icons for non-WCA puzzles (the icon font only ships WCA glyphs). Shape reflects
+   the puzzle family; internal lines hint at size/order. */
+/* Non-WCA icons in the WCA style: a single flat FACE of the puzzle with its grid (denser = bigger).
+   minx→pentagon face, pyra/octa→triangle face, skewb/redi→square face. */
+const NW_ICON = (() => {
+  const O='<svg viewBox="0 0 24 24" class="puz-svg" aria-hidden="true">', C='</svg>';
+  const ln=(a,b,c,d)=>`<line x1="${(+a).toFixed(1)}" y1="${(+b).toFixed(1)}" x2="${(+c).toFixed(1)}" y2="${(+d).toFixed(1)}"/>`;
+  const lerp=(P,Q,t)=>[P[0]+(Q[0]-P[0])*t, P[1]+(Q[1]-P[1])*t];
+  const TA=[12,3], TB=[3.5,20], TC=[20.5,20];                     // a triangular face (pyraminx / octahedron)
+  const PENT=[[12,2.5],[21,9.3],[17.4,20],[6.6,20],[3,9.3]];
+  function minx(layers){ let g=`<polygon class="pz-face" points="${PENT.map(p=>p.join(',')).join(' ')}"/>`;
+    const rings = layers<=2?1 : layers<=4?2 : 3;                   // concentric pentagons + spokes = megaminx face
+    for(let i=1;i<=rings;i++){ const s=1-i*(0.62/(rings+0.4)); g+=`<polygon points="${PENT.map(p=>(12+(p[0]-12)*s).toFixed(1)+','+(12+(p[1]-12)*s).toFixed(1)).join(' ')}"/>`; }
+    const s=1-(0.62/(rings+0.4)); PENT.forEach(p=>g+=ln(12+(p[0]-12)*s,12+(p[1]-12)*s,p[0],p[1]));
+    return O+g+C; }
+  function tri(layers){ let g=`<polygon class="pz-face" points="${TA.join(',')} ${TB.join(',')} ${TC.join(',')}"/>`;
+    for(let i=1;i<layers;i++){ const t=i/layers;                  // full triangular grid: lines parallel to all three sides
+      g+=ln(...lerp(TA,TB,t), ...lerp(TA,TC,t)); g+=ln(...lerp(TC,TA,t), ...lerp(TC,TB,t)); g+=ln(...lerp(TB,TA,t), ...lerp(TB,TC,t)); }
+    return O+g+C; }
+  function octaFace(corner){ const mAB=lerp(TA,TB,.5), mBC=lerp(TB,TC,.5), mCA=lerp(TC,TA,.5);
+    let g=`<polygon class="pz-face" points="${TA.join(',')} ${TB.join(',')} ${TC.join(',')}"/>`
+        + `<polygon points="${mAB.map(v=>v.toFixed(1)).join(',')} ${mBC.map(v=>v.toFixed(1)).join(',')} ${mCA.map(v=>v.toFixed(1)).join(',')}"/>`;
+    if(corner) [TA,TB,TC].forEach(p=>g+=`<circle class="pz-dot" cx="${p[0]}" cy="${p[1]}" r="1.7"/>`);
+    return O+g+C; }
+  function skewb(layers){ const M=[[12,4],[20,12],[12,20],[4,12]];   // square face + inscribed diamond(s) = skewb cut
+    let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>'+`<polygon points="${M.map(p=>p.join(',')).join(' ')}"/>`;
+    for(let i=1;i<=Math.min(layers-2,3);i++){ const s=1-i*0.24; g+=`<polygon points="${M.map(p=>(12+(p[0]-12)*s).toFixed(1)+','+(12+(p[1]-12)*s).toFixed(1)).join(' ')}"/>`; }
+    return O+g+C; }
+  function redi(){ let g='<rect class="pz-face" x="4" y="4" width="16" height="16" rx="1.5"/>';
+    [[4,4,8,4,4,8],[20,4,16,4,20,8],[4,20,8,20,4,16],[20,20,16,20,20,16]].forEach(c=>g+=`<polygon class="pz-dot" points="${c[0]},${c[1]} ${c[2]},${c[3]} ${c[4]},${c[5]}"/>`);
+    return O+g+C; }
+  const map={ fto:()=>octaFace(false), cto:()=>octaFace(true), redi:()=>redi(),
+    kilo:()=>minx(2), masterkilo:()=>minx(4), giga:()=>minx(5), elitekilo:()=>minx(6), tera:()=>minx(7),
+    mpyra:()=>tri(4), profpyra:()=>tri(5), royalpyra:()=>tri(6), pyramorphix:()=>tri(2),
+    masterskewb:()=>skewb(3), eliteskewb:()=>skewb(4), skewb7:()=>skewb(7) };
+  return id => map[id] ? map[id]() : null;
+})();
+function iconHTML(id, cls) { const ic = NW_ICON(id);
+  return ic ? `<span class="puz-icon ${cls||''}">${ic}</span>` : `<span class="cubing-icon event-${EVENT[id]||'333'} ${cls||''}"></span>`; }
+function cubeArt(p) { return iconHTML(p.id, 'art-icon'); }
 // Official WCA event order (matches the WCA site's event filter): cubes, then 3×3 variations, then the shaped puzzles, then big-BLD & MBLD.
 const WCA_ORDER = ['3x3','2x2','4x4','5x5','6x6','7x7','3bld','fmc','oh','clock','mega','pyra','skewb','sq1','4bld','5bld','mbld'];
 const wcaRank = id => { const i = WCA_ORDER.indexOf(id); return i<0 ? 99 : i; };
@@ -1421,7 +1774,7 @@ const CATEGORIES = [
   { id:'nxn',    name:'Cubes',         puzzles:['2x2','3x3','4x4','5x5','6x6','7x7'] },
   { id:'var',    name:'Challenges',    puzzles:['oh','3bld','fmc','mbld','4bld','5bld'] },
   { id:'shaped', name:'Other Puzzles', puzzles:['pyra','mega','skewb','sq1','clock'] },
-  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','mpyra','kilo'] },
+  { id:'nonwca', name:'Non-WCA',      puzzles:['fto','cto','kilo','masterkilo','giga','elitekilo','tera','pyramorphix','mpyra','profpyra','royalpyra','masterskewb','eliteskewb','skewb7','redi'] },
 ];
 const catOf = pid => CATEGORIES.find(c => c.puzzles.includes(pid));
 const NONWCA = new Set((CATEGORIES.find(c => c.id==='nonwca') || { puzzles:[] }).puzzles);   // kept off the home page; menu tab sits after Stats
@@ -1481,10 +1834,13 @@ function openCategory(catId, wantPz) {
   const left = megapanel.querySelector('.cat-puzzles'), right = megapanel.querySelector('.cat-methods');
   const activePz = (wantPz && cat.puzzles.includes(wantPz)) ? wantPz
                  : (cur.p && cat.puzzles.includes(cur.p)) ? cur.p : cat.puzzles[0];
+  let lastFam = null;
   cat.puzzles.forEach(pid => {
     const p = getP(pid);
+    if (p.fam && p.fam !== lastFam) { lastFam = p.fam;              // SpeedCubeShop-style family headers (Non-WCA submenu)
+      const h = document.createElement('div'); h.className='cat-fam-head'; h.textContent = p.fam; left.appendChild(h); }
     const b = document.createElement('button'); b.className='cat-pz'+(pid===activePz?' active':''); b.dataset.pz=pid;
-    b.innerHTML = `<span class="cubing-icon event-${EVENT[pid]||'333'}"></span><span>${shortName(p.name)}</span>`;
+    b.innerHTML = `${iconHTML(pid,'')}<span>${p.fam ? p.name : shortName(p.name)}</span>`;   // Non-WCA (fam) puzzles keep their shape name — several share an NxN size (two "4×4"s), so "4×4" alone is ambiguous
     const activate = () => { left.querySelectorAll('.cat-pz').forEach(x=>x.classList.remove('active')); b.classList.add('active'); renderMethods(right, pid); };
     b.addEventListener('mouseenter', activate);
     b.addEventListener('click', activate);
@@ -1500,7 +1856,12 @@ document.addEventListener('click', e => { if (!megawrap.contains(e.target)) clos
 document.addEventListener('keydown', e => { if (e.key==='Escape') closePanel(); });
 
 const VIEWS = ['view-home','view-notation','view-lesson','view-sheet','view-trainer','view-placeholder','view-play','view-stats'];
-const show = id => VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
+const show = id => {
+  if (id !== 'view-trainer' && (trTwistyEl || trState !== 'idle')) {   // leaving the timer → stop it & free the 3-D model (no leaked WebGL context or stuck 'running' state)
+    teardownTwistyTimer(); cancelAnimationFrame(trRAF); trState='idle'; trTimerEl.classList.remove('armed','inspecting');
+  }
+  VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v!==id));
+};
 
 function goHome() { homeMode=true; statsMode=false; timerMode=false; closePanel(); document.querySelectorAll('.puzzle-tab.selected').forEach(t=>t.classList.remove('selected')); crumb.innerHTML='<b>Home</b>'; renderHome(); show('view-home'); }
 function select(pId,mId,iId) { homeMode=false; statsMode=false; timerMode=false; cur={p:pId,m:mId,i:iId}; render(); closePanel(); }
@@ -1542,7 +1903,7 @@ const playSimEl = document.getElementById('playSim');
 const playStatus = document.getElementById('playStatus');
 const playScrText = document.getElementById('playScrambleText');
 const playView = document.getElementById('view-play');
-let playN = 3, playHist = [], playEntry = null;
+let playN = 3, playHist = [], playEntry = null, playMoves = 0;   // playHist = undo stack (drag turns); playMoves = the displayed counter (also counts keyboard turns, resets on solve)
 
 /* Every interactable virtual puzzle auto-appears here. Add an entry → it shows in the dropdown. */
 const PLAY_PUZZLES = [
@@ -1551,26 +1912,67 @@ const PLAY_PUZZLES = [
   { id:'6x6', name:'6×6', kind:'cube', n:6 }, { id:'7x7', name:'7×7', kind:'cube', n:7 },
   { id:'pyra', name:'Pyraminx', kind:'sim', sim:pyraSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
   { id:'skewb', name:'Skewb', kind:'sim', sim:skewbSim, keys:{ u:'U', l:'L', r:'R', b:'B' } },
-  { id:'mega', name:'Megaminx', kind:'sim', sim:megaSim, keys:{ u:'U', l:'L', r:'R', b:'B', f:'F' } },
+  { id:'mega', name:'Megaminx', kind:'twisty', tw:'megaminx', scr:'minx' },   // 3-D cubing model + real WCA scramble (SVG megaSim still used in lessons)
   { id:'sq1', name:'Square-1', kind:'sim', sim:sqSim },     // interactive via drag (sqSim.turnLayer / slash)
   { id:'clock', name:'Clock', kind:'sim', sim:clockSim },   // interactive via clicks/drags (clockSim.turn)
+  // ---- Non-WCA: full 3-D interactive models via cubing.js <twisty-player> (tw = cubing puzzle id; scr = scramble event id or null) ----
+  { id:'fto', name:'FTO', kind:'twisty', tw:'fto', scr:'fto' },
+  { id:'kilo', name:'Kilominx', kind:'twisty', tw:'kilominx', scr:'kilominx' },
+  { id:'mpyra', name:'Master Pyraminx', kind:'twisty', tw:'master_tetraminx', scr:'master_tetraminx' },
+  { id:'giga', name:'Gigaminx', kind:'twisty', tw:'gigaminx', scr:null },     // no cubing scramble — drag to mix
+  { id:'redi', name:'Redi Cube', kind:'twisty', twDesc:'c v 0.915641442663986', scr:null },   // redi_cube has no twisty renderer → render as its mechanical twin, the Compy Cube
+  // puzzle-geometry models — rendered from a geometry SPEC via experimentalPuzzleDescription.
+  // (experimentalPuzzleName silently falls back to a 3x3; only registry names + geometry specs render.)
+  // Specs derived from cubing puzzle-geometry: shape + cut-type/distance pairs. No cubing scramble — drag to mix.
+  { id:'masterskewb', name:'Master Skewb', kind:'twisty', twDesc:'c v 0.275', scr:null },
+  { id:'profpyra', name:"Professor's Pyraminx", kind:'twisty', twDesc:'t v -0.2 v 0.6 v 1.4 v 2.2', scr:null },
+  { id:'royalpyra', name:'Royal Pyraminx', kind:'twisty', twDesc:'t v -0.333333333333333 v 0.333333333333333 v 1 v 1.66666666666667 v 2.33333333333333', scr:null },
+  { id:'tera', name:'Teraminx', kind:'twisty', twDesc:'d f 0.64 f 0.76 f 0.88', scr:null },
+  { id:'cto', name:'CTO', kind:'twisty', twDesc:'o v 0.433012701892219', scr:null },   // corner-turning octahedron (Trajber's)
+  { id:'eliteskewb', name:'Elite Skewb', kind:'twisty', twDesc:'c v 0 v 0.38', scr:null },   // order-4 skewb (cubing: "professor skewb")
 ];
+// Every non-WCA puzzle with a 3-D model gets the virtual-timer option (self-scrambled when the app text
+// scramble isn't in the model's own notation). Pyramorphix renders as a 2×2 (cube engine); Master/Elite
+// Kilominx and 7×7 Skewb have no cubing model, so they stay physical-only.
+PLAY_PUZZLES.forEach(p => { if (p.kind==='twisty') TWISTY_TIMER[p.id] = { tw:p.tw, twDesc:p.twDesc }; });
 
 const playControls = makeCubeControls(playCube, document.getElementById('playCube'), playScene, {
   isActive: () => !playView.classList.contains('hidden') && playEntry && playEntry.kind==='cube' && playN===3,
-  onTurn: m => { if (m) playHist.push(m); updateStatus(); },
-  onReset: () => { playCube.reset(); playHist=[]; playScrText.textContent=''; updateStatus(); },
+  onTurn: m => { if (m) playHist.push(m); playMoves++; updateStatus(); },   // keyboard turns call onTurn() with no move — count them too, they just aren't undoable
+  onReset: () => { playCube.reset(); playHist=[]; playMoves=0; playScrText.textContent=''; updateStatus(); },
 });
 const renderSim = () => { playSimEl.innerHTML = playEntry.sim.svg3d ? playEntry.sim.svg3d() : playEntry.sim.svg(); };
 function updateStatus() {
-  if (!playEntry) return;
+  if (!playEntry || playEntry.kind==='twisty') return;     // twisty model manages its own state
   const solved = playEntry.kind==='cube' ? cubeSolvedByColor(playCube) : playEntry.sim.isSolved();
+  if (solved) playMoves = 0;                               // solved → the counter starts fresh, so the next solve counts from 1
   playStatus.classList.toggle('solved', solved);
   playStatus.textContent = solved ? 'Solved ✔'
-    : (playEntry.kind==='cube' && playHist.length) ? playHist.length + ' move' + (playHist.length===1?'':'s') : 'Scrambled';
+    : (playEntry.kind==='cube' && playMoves) ? playMoves + ' move' + (playMoves===1?'':'s') : 'Scrambled';
 }
 function playSelect(entry) {
-  playEntry = entry; playHist = []; playScrText.textContent = ''; busy = false;
+  playEntry = entry; playHist = []; playMoves = 0; playScrText.textContent = ''; busy = false;
+  if (entry.kind==='twisty') {                              // 3-D cubing.js model (FTO/Kilominx/Master Pyraminx/Gigaminx/Redi)
+    playView.classList.toggle('sim-mode', true);
+    document.getElementById('playUndo').style.display = 'none';
+    playControls.setInteract({});
+    document.getElementById('playHint').innerHTML = 'A full <b>3-D interactive model</b> (powered by cubing.js). <b>Drag or click a piece</b> to turn its layer (<b>right-click</b> reverses); <b>drag empty space</b> to tumble the whole puzzle. Use <b>Scramble</b> to shuffle.';
+    const tp = document.createElement('twisty-player');
+    tp.setAttribute('background','none'); tp.setAttribute('control-panel','none'); tp.setAttribute('hint-facelets','none'); tp.setAttribute('tempo-scale','5');
+    tp.experimentalDragInput = 'none';                             // turn off cubing's native orbit/click-press; attachTwistyControls owns all pointer input (drag-to-turn + tumble)
+    // NOTE: do NOT set display here — twisty-player needs its default :host{display:grid};
+    // forcing display:block collapses its internal grid layout to 0 height (blank 360x0 canvas).
+    // margin:0 auto still centres it (grid host is block-level).
+    tp.style.cssText = 'width:100%;max-width:360px;height:340px;margin:0 auto;touch-action:none';   // touch-action:none so touch/trackpad drags turn pieces instead of scrolling the page (cubing's vendored code doesn't set it)
+    if (entry.tw) tp.setAttribute('puzzle', entry.tw);                         // cubing registry puzzle
+    else if (entry.twName) tp.experimentalPuzzleName = entry.twName;           // puzzle-geometry by name
+    else if (entry.twDesc) tp.experimentalPuzzleDescription = entry.twDesc;    // puzzle-geometry by spec
+    playSimEl.innerHTML = ''; playSimEl.appendChild(tp);
+    const mw = document.createElement('div'); playSimEl.appendChild(mw); renderTwistyMoves(tp, mw, { snap: TW_CAM_SNAP[entry.id] });   // clickable move buttons (+ FTO orbit-snap)
+    attachTwistyControls(tp, TW_TUMBLE[entry.id]);                           // NxN-style input: drag a sticker to turn, drag empty space to tumble
+    playStatus.textContent = '3-D model'; playStatus.classList.remove('solved');
+    return;
+  }
   const isSim = entry.kind==='sim';
   playView.classList.toggle('sim-mode', isSim);
   document.getElementById('playUndo').style.display = isSim ? 'none' : '';
@@ -1582,18 +1984,24 @@ function playSelect(entry) {
     : entry.id==='sq1'   ? 'Drag the <b>top</b> or <b>bottom</b> layer to rotate it (snaps to 30°); <b>click the middle band</b> (or press <b>/</b>) to slash. Drag the <b>background</b> to rotate the view. <b>Del</b> resets.'
     :                      'Click a <b>pin</b> to raise/lower it (on either face), then <b>drag a corner clock</b> to turn it and the pinned clocks. <b>Del</b> resets.';
   if (isSim) { playControls.setInteract({}); entry.sim.reset(); renderSim(); }
-  else { playN = entry.n; playCube.rebuild({ N:playN }); playControls.setInteract({ drag:true, keys:true }); }
+  else { playSimEl.innerHTML=''; playN = entry.n; playCube.rebuild({ N:playN }); playControls.setInteract({ drag:true, keys:true }); }   // clear any leftover twisty-player (frees its WebGL context)
   updateStatus();
 }
 function playScramble() {
   if (busy) return;
-  if (playEntry.kind==='cube') { const seq=fullScramble(playN); playCube.reset(); playCube.applyInstant(seq); playHist=[]; playScrText.textContent=showMoves(seq); }
+  if (playEntry.kind==='twisty') {                          // scramble the 3-D model
+    const tp = playSimEl.querySelector('twisty-player'); if (!tp) return;
+    if (playEntry.scr && window.wcaScramble) window.wcaScramble(playEntry.scr).then(s => { tp.experimentalSetupAlg = s; tp.alg = ''; playScrText.textContent = showMoves(s.split(/\s+/)); });
+    else if (tp.experimentalModel) tp.experimentalModel.currentPattern.get().then(kp => { const own = randomModelScramble(kp.kpuzzle); if (own) { tp.experimentalSetupAlg = own; tp.alg = ''; } }).catch(()=>{});   // no cubing scramble → self-scramble with the model's own moves
+    playStatus.textContent='Scrambled'; playStatus.classList.remove('solved'); return;
+  }
+  if (playEntry.kind==='cube') { const seq=fullScramble(playN); playCube.reset(); playCube.applyInstant(seq); playHist=[]; playMoves=0; playScrText.textContent=showMoves(seq); }
   else { const seq=playEntry.sim.scramble(); renderSim(); playScrText.textContent=showMoves(seq); }
   playStatus.textContent='Scrambled'; playStatus.classList.remove('solved');
 }
 async function playUndo() {
   if (busy || playEntry.kind!=='cube' || !playHist.length) return;
-  const m = playHist.pop(); busy = true;
+  const m = playHist.pop(); playMoves = Math.max(0, playMoves-1); busy = true;
   await playCube.animateMove({ axis:m.axis, angle:-m.angle, sel: p => p[m.axis]===m.lvl });
   busy = false; updateStatus();
 }
@@ -1604,18 +2012,21 @@ playSel.addEventListener('change', e => playSelect(PLAY_PUZZLES.find(p => p.id==
 document.getElementById('playScramble').onclick = playScramble;
 document.getElementById('playUndo').onclick = playUndo;
 document.getElementById('playReset').onclick = () => { if (busy) return;
-  if (playEntry.kind==='cube') playCube.reset(); else { playEntry.sim.reset(); renderSim(); }
-  playHist=[]; playScrText.textContent=''; updateStatus(); };
+  if (playEntry.kind==='cube') playCube.reset();
+  else if (playEntry.kind==='twisty') { const tp=playSimEl.querySelector('twisty-player'); if (tp) { tp.experimentalSetupAlg=''; tp.alg=''; } }   // 3-D model → back to solved
+  else { playEntry.sim.reset(); renderSim(); }
+  playHist=[]; playMoves=0; playScrText.textContent=''; updateStatus(); };
 document.getElementById('playRecenter').onclick = () => {
   if (playEntry.kind==='cube') playControls.recenter();
-  else if (playEntry.sim.recenter) { playEntry.sim.recenter(); renderSim(); }
+  else if (playEntry.kind==='twisty') { /* the 3-D model auto-centres — nothing to recentre */ }
+  else if (playEntry.sim && playEntry.sim.recenter) { playEntry.sim.recenter(); renderSim(); }
 };
 /* keyboard for SIM puzzles in the playground (Pyraminx: camera-relative faces + Alt = tips) */
 document.addEventListener('keydown', e => {
   if (playView.classList.contains('hidden') || !playEntry || playEntry.kind!=='sim') return;
   if (e.metaKey) return;
   const sim = playEntry.sim;
-  if (e.key==='Delete') { e.preventDefault(); sim.reset(); playHist=[]; playScrText.textContent=''; renderSim(); updateStatus(); return; }
+  if (e.key==='Delete') { e.preventDefault(); sim.reset(); playHist=[]; playMoves=0; playScrText.textContent=''; renderSim(); updateStatus(); return; }
   if (playEntry.id==='sq1') { if (e.key==='/') { e.preventDefault(); sim.snapSlash(0, ()=>renderSim(), ()=>updateStatus()); } return; }   // Square-1: / = right slash (animated)
   if (sim.screenRoles) { simKeyMove(sim, e, { onChange:()=>{ renderSim(); updateStatus(); } }); return; }   // Pyraminx / Skewb / Megaminx
   if (e.altKey) return;
@@ -1671,6 +2082,12 @@ attachSimPointer(playSimEl, () => playEntry && playEntry.kind==='sim' && playEnt
   });
   const end=()=>{ drag=null; }; playSimEl.addEventListener('pointerup', end); playSimEl.addEventListener('pointercancel', end);
 })();
+/* Redi Cube in the playground: click a corner sticker to twist it (Shift = counter-clockwise). */
+playSimEl.addEventListener('pointerdown', e => {
+  if (!playEntry || playEntry.id!=='redi') return;
+  const cn = e.target.closest('[data-corner]'); if (!cn) return;
+  rediSim.twist(+cn.dataset.corner, e.shiftKey); renderSim(); updateStatus();
+});
 playSelect(PLAY_PUZZLES.find(p => p.id==='3x3'));   // initialise
 
 function openPlay() {
@@ -1690,7 +2107,7 @@ function openStats() {
 /* ---- Universal Timer: a top-level tab running any event's full-solve timer (no per-step Mode selector).
    Reuses the whole trainer view; solves share each event's existing 'timer:<event>:solve' history. ---- */
 const TIMER_EVENTS = PUZZLES.filter(p => p.methods.some(m => m.id==='timer' && (m.items||[]).some(i => i.id==='solve')))
-                            .map(p => ({ id:p.id, name:shortName(p.name) }));
+                            .map(p => ({ id:p.id, name: p.fam ? p.name : shortName(p.name) }));   // Non-WCA keep their shape name (several share an NxN size)
 let timerEvent = '3x3';
 function loadTimerEvent(ev) {
   timerEvent = ev;
@@ -1726,7 +2143,7 @@ function openTimer() {
 (function initTimerDropdown(){
   const sel=document.getElementById('trEvent'); if (!sel) return;
   sel.innerHTML = TIMER_EVENTS.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
-  sel.addEventListener('change', e => loadTimerEvent(e.target.value));
+  sel.addEventListener('change', e => { loadTimerEvent(e.target.value); e.target.blur(); });   // blur so the dropdown can't keep focus and swallow timer keystrokes (type-ahead switching events mid-solve)
 })();
 
 /* ================================================================
@@ -1837,13 +2254,15 @@ function statsDeepPanel(sel) {
   if (statsSubMs==null && ms.mean) statsSubMs=Math.max(1000, Math.round(ms.mean/1000)*1000);
   if (document.activeElement!==subInput) subInput.value = statsSubMs ? (statsSubMs/1000) : '';
   const sub=statsSubMs, subCount=sub?singles.filter(x=>x<=sub).length:0, subPct=valid?subCount/valid*100:0;
+  const isCount = /(?:^|:)fmc(?::|$)/.test(sel.id || '');   // FMC stores a move COUNT, not a time
+  const fA = x => (x==null) ? '—' : x==='dnf' ? 'DNF' : (isCount ? String(Math.round(x)) : fmt(x));
   const cards=[];
-  cards.push({l:'Best single', v:fmtA(best)});
-  cards.push({l:'Mean', v:fmtA(ms.mean), s:valid+' valid'});
-  cards.push({l:'σ spread', v:ms.sd==null?'—':fmt(ms.sd)});
-  cards.push({l:'Worst single', v:fmtA(worst)});
+  cards.push({l:'Best single', v:fA(best)});
+  cards.push({l:'Mean', v:fA(ms.mean), s:valid+' valid'});
+  cards.push({l:'σ spread', v:ms.sd==null?'—':(isCount?ms.sd.toFixed(1):fmt(ms.sd))});
+  cards.push({l:'Worst single', v:fA(worst)});
   [['Ao5',5],['Ao12',12],['Ao50',50],['Ao100',100]].forEach(([l,k])=>{
-    if (n>=k) { const r=rollingAo(solves,k); cards.push({l:'Best '+l, v:fmtA(r.best), s:'now '+fmtA(r.cur)}); } });
+    if (n>=k) { const r=rollingAo(solves,k); cards.push({l:'Best '+l, v:fA(r.best), s:'now '+fA(r.cur)}); } });
   cards.push({l:'Sub-'+(sub/1000)+'s', v:subPct.toFixed(0)+'%', s:subCount+' of '+valid});
   cards.push({l:'DNF rate', v:(n?(dnf/n*100).toFixed(0):'0')+'%', s:dnf+' of '+n, dnf:dnf>0});
   deepEl.innerHTML = cards.map(c=>`<div class="deep-card"><div class="dc-lbl">${c.l}</div><div class="dc-val${c.dnf?' dnf':''}">${c.v}</div>${c.s?`<div class="dc-sub">${c.s}</div>`:''}</div>`).join('');
