@@ -78,7 +78,9 @@ function makeSquare1() {
     if (side) midL ^= 1; else midR ^= 1;
   }
   function applyTokens(tokens) {
-    tokens.forEach(tok => {
+    // accept a token array OR a raw scramble string like "(1,0) / (-3,0) /" — the timer passes a string,
+    // and forEach on a string threw, leaving the 2-circle visual un-updated.
+    (Array.isArray(tokens) ? tokens : String(tokens).match(/\([^)]*\)|\//g) || []).forEach(tok => {
       if (tok === '/') { slash(); return; }
       const m = tok.match(/^\(\s*(-?\d+)\s*,\s*(-?\d+)\s*\)$/);
       if (m) { top = rot(top, -(+m[1])); bot = rot(bot, -(+m[2])); }   // clockwise + → shift left in array
@@ -100,6 +102,15 @@ function makeSquare1() {
       seq.push(`(${norm(-a)},${norm(-b)})`, '/');
       slash();
     }
+    // The loop ends on a slash, which can leave a corner straddling the cut. Settle with a final (a,b) so
+    // the scramble ends cut-clear (slashable) — no corner sitting over the slice layer.
+    const aC=[], bC=[];
+    for (let a=0;a<12;a++) if (cutClear(rot(top,a))) aC.push(a);
+    for (let b=0;b<12;b++) if (cutClear(rot(bot,b))) bC.push(b);
+    const fa = aC.includes(0) ? 0 : aC[Math.floor(Math.random()*aC.length)];
+    const fb = bC.includes(0) ? 0 : bC[Math.floor(Math.random()*bC.length)];
+    top = rot(top, fa); bot = rot(bot, fb);
+    if (norm(-fa) || norm(-fb)) seq.push(`(${norm(-fa)},${norm(-fb)})`);
     setTokens(seq);                    // leave sim showing the scrambled state
     return seq;
   }
